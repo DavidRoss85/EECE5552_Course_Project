@@ -1,3 +1,3 @@
-# course_project_repo_template
-Template for Course Projects in Robotics
-# EECE5552_Course_Project
+# EECE5552 Course Project
+Course project files.
+- first commit - create directory structures
