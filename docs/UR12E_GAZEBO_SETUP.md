@@ -63,13 +63,13 @@ ros2 launch ur_simulation_gz ur_sim_moveit.launch.py ur_type:=ur12e
 
 This enables planning via MoveGroup interfaces or the Motion Planning panel in RViz.
 
-**Running the `moveit_publisher` example:** The `moveit_example` node uses MoveItPy and expects the MoveIt stack (robot description, SRDF, planning pipelines) to already be on the parameter server. **Start the full MoveIt launch above first**, then in a second terminal:
+**Running the `moveit_examples` example:** The `moveit_publisher` node uses MoveItPy and expects the MoveIt stack (robot description, SRDF, planning pipelines) to already be on the parameter server. **Start the full MoveIt launch above first**, then in a second terminal:
 
 ```bash
-ros2 run moveit_publisher moveit_example
+ros2 run moveit_examples moveit_publisher
 ```
 
-If you run `moveit_example` without the launch, you will see: `Failed to load planning pipelines from parameter server`.
+If you run `moveit_publisher` without the launch, you will see: `Failed to load planning pipelines from parameter server`.
 
 ---
 

@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'moveit_publisher'
+package_name = 'moveit_examples'
 
 setup(
     name=package_name,
@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'moveit_example = moveit_publisher.moveit_example:main',
+            'moveit_publisher = moveit_examples.moveit_publisher:main',
         ],
     },
 )
