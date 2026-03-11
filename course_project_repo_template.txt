@@ -1,0 +1,58 @@
+course_project_repo_template
+├── config
+│ ├── control.yaml
+│ ├── experiment.yaml
+│ ├── perception.yaml
+│ ├── robot.yaml
+│ └── sensors.yaml
+├── data
+│ ├── bags
+│ ├── calibration
+│ ├── datasets
+│ └── ground_truth
+├── docs
+│ ├── figures
+│ ├── Project_Proposal.pdf
+│ ├── Project_Report.pdf
+│ ├── Slides_Template_Final.pdf
+│ └── Slides_Template_Mid-Term.pdf
+├── launch
+│ ├── eval.launch.py
+│ ├── sim.launch.py
+│ └── system.launch.py
+├── LICENSE
+├── README.md
+├── results
+│ ├── logs
+│ ├── metrics
+│ ├── plots
+│ ├── trajectories
+│ └── videos
+├── scripts
+│ ├── analyze_results.py
+│ ├── run_experiments.sh
+│ ├── run_system.sh
+│ └── setup.sh
+├── simulation
+│ ├── assets
+│ ├── gazebo
+│ ├── isaac
+│ └── worlds
+├── src
+│ ├── control
+│ ├── hri
+│ ├── learning
+│ ├── localization
+│ ├── manipulation
+│ ├── mapping
+│ ├── navigation
+│ ├── perception
+│ ├── planning
+│ ├── safety
+│ ├── sensing
+│ └── utils
+└── tests
+├── test_control.py
+├── test_localization.py
+├── test_perception.py
+└── test_planning.py
