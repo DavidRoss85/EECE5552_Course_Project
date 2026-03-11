@@ -50,6 +50,8 @@ MoveIt recommends **CycloneDDS** as the DDS middleware.
 
 After installing, you can start planning in RViz using the [MoveIt 2 Getting Started Tutorial](https://moveit.picknik.ai/main/doc/tutorials/getting_started/getting_started.html).
 
+> **Note for this project:** The official Getting Started tutorial opens with building MoveIt 2 from source (colcon workspace, cloning repos, 20–30 min build) and also mentions using a Docker container. **Neither is required for this project.** The binary install above is sufficient; you can skip the “Install ROS 2 and colcon” through “Setup Your Colcon Workspace” source-build steps and go straight to tutorials like [MoveIt Quickstart in RViz](https://moveit.picknik.ai/main/doc/tutorials/quickstart_in_rviz/quickstart_in_rviz_tutorial.html) once MoveIt 2 is installed via `apt`.
+
 ---
 
 ## Other setups
