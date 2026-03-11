@@ -13,12 +13,17 @@ This guide documents how to install and launch the Universal Robots UR12e in Gaz
 
 1. Install ROS 2 Jazzy: [ROS 2 Jazzy Ubuntu Installation](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html)
 
-2. Install the simulation package:
+2. Install the UR robot driver (required):
+   ```bash
+   sudo apt install ros-jazzy-ur-robot-driver
+   ```
+
+3. Install the simulation package:
    ```bash
    sudo apt-get install ros-jazzy-ur-simulation-gz
    ```
 
-3. Source your ROS 2 Jazzy installation:
+4. Source your ROS 2 Jazzy installation:
    ```bash
    source /opt/ros/jazzy/setup.bash
    ```
@@ -42,7 +47,7 @@ For simulation without motion planning:
 ros2 launch ur_simulation_gz ur_sim_control.launch.py ur_type:=ur12e
 ```
 
-To test motion with the example script (if `ur_robot_driver` is installed), in a new terminal:
+To test motion with the example script (uses the `ur_robot_driver` installed above), in a new terminal:
 
 ```bash
 ros2 run ur_robot_driver example_move.py
