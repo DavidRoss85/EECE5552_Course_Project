@@ -8,6 +8,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
 from ament_index_python.packages import get_package_share_directory
+from launch_param_builder import ParameterBuilder
 
 
 def generate_launch_description():
@@ -37,6 +38,27 @@ def generate_launch_description():
         MoveItConfigsBuilder('ur', package_name='ur_moveit_config')
         .robot_description_semantic('srdf/ur.srdf.xacro', {'name': 'ur12e'})
         .to_moveit_configs()
+    )
+
+    servo_params = {
+        "moveit_servo": ParameterBuilder("ur_moveit_config")
+        .yaml("config/ur_servo.yaml")
+        .to_dict()
+    }
+
+    acceleration_filter_update_period = {"update_period": 0.01}
+
+    servo_node = Node(
+        package="moveit_servo",
+        executable="servo_node",
+        parameters=[
+            servo_params,
+            acceleration_filter_update_period,
+            moveit_config.robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.robot_description_kinematics, # here is where kinematics plugin parameters are passed
+            {"use_sim_time": True},
+        ],
     )
 
     move_group_node = Node(
@@ -98,4 +120,5 @@ def generate_launch_description():
         gazebo_and_controllers,
         moveit,
         cameras,
+        servo_node,
     ])

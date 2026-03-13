@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             'environment_setup = robot_control.environment_setup:main',
             'goal_controller = robot_control.goal_controller:main',
+            'teleop_controller = robot_control.teleop_controller:main',
         ],
     },
 )
