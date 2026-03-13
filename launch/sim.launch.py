@@ -108,7 +108,7 @@ def generate_launch_description():
 
     moveit = TimerAction(
         period=10.0,
-        actions=[move_group_node, rviz_node]
+        actions=[move_group_node, rviz_node, servo_node]
     )
 
     cameras = TimerAction(
@@ -120,5 +120,4 @@ def generate_launch_description():
         gazebo_and_controllers,
         moveit,
         cameras,
-        servo_node,
     ])
