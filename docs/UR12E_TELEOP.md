@@ -1,39 +1,39 @@
-# UR12e Simulator Teleoperation
+# UR12e Joystick Teleoperation
 
-This guide explains how to teleoperate the UR12e in the Gazebo simulator using a joystick and MoveIt Servo.
+Teleoperate the UR12e in Gazebo using an Xbox or compatible joystick and MoveIt Servo.
 
 ---
 
 ## Overview
 
-Teleoperation uses real-time twist commands (linear and angular velocity) to drive the arm. The data flow is:
+Data flow:
 
 ```
 Joystick → joy_node → teleop_twist_joy → teleop_controller → MoveIt Servo → UR12e
-                         /cmd_vel         /servo_node/delta_twist_cmds
+                         /game_controller   /servo_node/delta_twist_cmds
 ```
 
-- **joy_node**: Publishes raw joystick axes/buttons
-- **teleop_twist_joy**: Maps joystick input to Twist (`/cmd_vel`)
-- **teleop_controller**: Converts Twist to TwistStamped for Servo (`/servo_node/delta_twist_cmds`)
-- **MoveIt Servo**: Sends velocity commands to the simulated arm
+- **joy_node**: Raw joystick axes/buttons → `/joy`
+- **teleop_twist_joy**: Maps axes to Twist → `/game_controller`
+- **teleop_controller**: Twist → TwistStamped for Servo; **B button** → return to home
+- **MoveIt Servo**: Velocity commands → arm
 
 ---
 
 ## Prerequisites
 
-1. **Simulation running** — Gazebo with UR12e, MoveIt, and Servo launched (see [simulation/README.md](../simulation/README.md))
-2. **Joystick connected** — USB gamepad or compatible controller
-3. **Packages installed**:
+1. **Simulation running** — `sim.launch.py` brings up Gazebo, MoveIt, Servo, and runs setup (env, home pose, controller switch). Wait ~30 seconds for it to finish.
+2. **Joystick** — USB gamepad (e.g. Xbox Series X Controller)
+3. **Packages:**
    ```bash
    sudo apt install ros-jazzy-joy ros-jazzy-teleop-twist-joy
    ```
 
 ---
 
-## Launch Order
+## Launch
 
-### Step 1 — Simulation (Terminal 1)
+### 1. Simulation (Terminal 1)
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -41,115 +41,81 @@ source ~/EECE5552_Course_Project/install/setup.bash
 ros2 launch launch/sim.launch.py
 ```
 
-Wait for "You can start planning now!"
+Wait for the full startup sequence (~30 s).
 
----
-
-### Step 2 — Set Command Type (Terminal 2)
-
-Switch Servo to accept twist commands (required for teleop):
-
-```bash
-source /opt/ros/jazzy/setup.bash
-./scripts/set_command_type.sh
-```
-
-Or call the service directly:
-```bash
-ros2 service call /servo_node/switch_command_type moveit_msgs/srv/ServoCommandType "{command_type: 1}"
-```
-
----
-
-### Step 3 — Planning Scene (Terminal 3, optional)
-
-Add the table as a collision object so the arm avoids it:
+### 2. Teleop (Terminal 2)
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/EECE5552_Course_Project/install/setup.bash
-ros2 run robot_control environment_setup
+ros2 launch launch/teleop.launch.py
+```
+
+This starts joy_node, teleop_twist_joy, and teleop_controller.
+
+---
+
+## Joystick Mapping (Xbox)
+
+| Input | Effect |
+|-------|--------|
+| Left stick X | Left / right |
+| Left stick Y | Forward / back |
+| Right stick Y | Up / down |
+| Right stick X | Rotate (yaw) |
+| **B button** | **Return to home pose** |
+
+The enable button (RB / right bumper) must be held to send twist commands. Press **B** to return the arm to the home pose; the node switches controllers, runs the trajectory, then restores Servo control.
+
+---
+
+## Topic Flow
+
+```
+/joy (sensor_msgs/Joy)
+    ↓
+teleop_twist_joy → /game_controller (geometry_msgs/Twist)
+    ↓
+teleop_controller → /servo_node/delta_twist_cmds (geometry_msgs/TwistStamped)
+    ↓
+servo_node → /forward_position_controller/commands
+    ↓
+UR12e in Gazebo
 ```
 
 ---
 
-### Step 4 — Joystick Node (Terminal 4)
+## Alternative: Keyboard Teleop
 
 ```bash
-source /opt/ros/jazzy/setup.bash
-ros2 run joy joy_node --ros-args -p use_sim_time:=true
+sudo apt install ros-jazzy-teleop-twist-keyboard
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
-Or use the helper script:
-```bash
-source /opt/ros/jazzy/setup.bash
-./scripts/start_joystick.sh
-```
-
----
-
-### Step 5 — Teleop Twist Joy (Terminal 5)
-
-```bash
-source /opt/ros/jazzy/setup.bash
-ros2 run teleop_twist_joy teleop_node --ros-args \
-  -p require_enable_button:=false \
-  -p use_sim_time:=true
-```
-
-Or use the helper script:
-```bash
-source /opt/ros/jazzy/setup.bash
-./scripts/start_teleop.sh
-```
-
----
-
-### Step 6 — Teleop Controller (Terminal 6)
-
-Bridges `/cmd_vel` to `/servo_node/delta_twist_cmds` for MoveIt Servo:
-
-```bash
-source /opt/ros/jazzy/setup.bash
-source ~/EECE5552_Course_Project/install/setup.bash
-ros2 run robot_control teleop_controller --ros-args -p use_sim_time:=true
-```
-
----
-
-## Using the Joystick
-
-With the default `teleop_twist_joy` mapping:
-
-| Input            | Effect                               |
-|------------------|--------------------------------------|
-| Left stick X     | Linear velocity in Y (left/right)    |
-| Left stick Y     | Linear velocity in X (forward/back)  |
-| Right stick      | Angular velocity (rotation)          |
-
-Move the sticks to drive the end effector. Servo applies velocity limits from its config for safety.
+`teleop_controller` subscribes to `/game_controller`. Remap teleop_twist_keyboard to publish there, or change teleop_controller to subscribe to `/cmd_vel`.
 
 ---
 
 ## Troubleshooting
 
 **Robot doesn't move**
-- Check Servo is receiving robot state (no repeated "Waiting to receive robot state update" in the servo logs)
-- Verify topics: `ros2 topic list | grep -E "cmd_vel|delta_twist|joy"`
-
-**Servo keeps "Waiting to receive robot state update"**
-- Confirm `/joint_states` is publishing: `ros2 topic hz /joint_states`
+- Hold the enable button (A)
+- Check topics: `ros2 topic list | grep -E "game_controller|delta_twist|joy"`
+- Ensure Servo receives state (no repeated "Waiting to receive robot state update")
 
 **Joystick not detected**
-- Check device: `ls /dev/input/js*`
-- Ensure permissions: `sudo usermod -aG input $USER` and log out/in
+- `ls /dev/input/js*`
+- `sudo usermod -aG input $USER` and log out/in
 
-**Teleop mapping feels wrong**
-- Edit `teleop_twist_joy` parameters (scale, axis mappings) or create a custom config
+**Constant drift / rotation**
+- teleop_controller uses a deadzone; axis mapping may need tuning in `teleop.launch.py`
+
+**B button home fails**
+- Sim must be fully up; trajectory controller is switched in briefly
 
 ---
 
 ## Related
 
-- [Simulation README](../simulation/README.md) — Full sim setup and goal-based control
-- `scripts/send_goal.py` — Send pose goals (MoveIt planning) instead of teleop
+- [simulation/README.md](../simulation/README.md) — Sim setup and goal-based control
+- `scripts/send_goal.py` — Pose goals via MoveIt

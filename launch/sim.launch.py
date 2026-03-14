@@ -3,7 +3,7 @@
 
 import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -106,9 +106,22 @@ def generate_launch_description():
         output='screen'
     )
 
+    environment_setup_node = Node(
+        package='robot_control',
+        executable='environment_setup',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
     moveit = TimerAction(
         period=10.0,
         actions=[move_group_node, rviz_node, servo_node]
+    )
+
+    # After MoveGroup is up, publish table to planning scene
+    environment_setup = TimerAction(
+        period=12.0,
+        actions=[environment_setup_node],
     )
 
     cameras = TimerAction(
@@ -116,8 +129,61 @@ def generate_launch_description():
         actions=[camera_bridge]
     )
 
+    home_pose_cmd = (
+        'trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, '
+        'wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [0.0, -1.5707, '
+        '1.5707, -1.5707, -1.5707, 0.0], time_from_start: {sec: 3, nanosec: 0}}]}'
+    )
+    home_pose_action = ExecuteProcess(
+        cmd=[
+            'ros2', 'action', 'send_goal',
+            '/scaled_joint_trajectory_controller/follow_joint_trajectory',
+            'control_msgs/action/FollowJointTrajectory',
+            home_pose_cmd,
+        ],
+        output='screen',
+        shell=False,
+    )
+    home_pose = TimerAction(
+        period=18.0,
+        actions=[home_pose_action],
+    )
+
+    # Step 3 (reverse order): deactivate trajectory, then spawn forward_position_controller
+    deactivate_trajectory = ExecuteProcess(
+        cmd=['ros2', 'control', 'set_controller_state', 'scaled_joint_trajectory_controller', 'inactive'],
+        output='screen',
+        shell=False,
+    )
+    spawn_forward = ExecuteProcess(
+        cmd=['ros2', 'run', 'controller_manager', 'spawner', 'forward_position_controller'],
+        output='screen',
+        shell=False,
+    )
+    # Run step 3 at 24s: home pose (18s) + 3s trajectory + ~3s buffer
+    step3_deactivate = TimerAction(period=24.0, actions=[deactivate_trajectory])
+    step3_spawn = TimerAction(period=25.0, actions=[spawn_forward])
+
+    # Step 4: Set Servo command type to TWIST (1)
+    set_command_type = ExecuteProcess(
+        cmd=[
+            'ros2', 'service', 'call',
+            '/servo_node/switch_command_type',
+            'moveit_msgs/srv/ServoCommandType',
+            '{command_type: 1}',
+        ],
+        output='screen',
+        shell=False,
+    )
+    step4 = TimerAction(period=27.0, actions=[set_command_type])
+
     return LaunchDescription([
         gazebo_and_controllers,
         moveit,
+        environment_setup,
         cameras,
+        home_pose,
+        step3_deactivate,
+        step3_spawn,
+        step4,
     ])
