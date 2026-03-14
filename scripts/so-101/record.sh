@@ -1,0 +1,16 @@
+lerobot-record --robot.type=so101_follower \
+    --robot.port=/dev/so101_follower \
+    --robot.id=gi_jane \
+    --robot.cameras="{ front: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30, fourcc: "MJPG"} }" \
+    --teleop.type=so101_leader \
+    --teleop.port=/dev/so101_leader \
+    --teleop.id=gi_joe \
+    --display_data=true \
+    --dataset.repo_id=frazier-z/so101 \
+    --dataset.num_episodes=5 \
+    --dataset.single_task="Grab the wooden rectangular block" \
+    --dataset.push_to_hub=false \
+    --dataset.episode_time_s=30 \
+    --dataset.reset_time_s=30 \
+    --resume true \
+    --dataset.root ~/GitHub/so101/datasets/move_block
