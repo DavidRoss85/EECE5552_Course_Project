@@ -1,1 +1,0 @@
-ros2 run joy joy_node --ros-args -p use_sim_time:=true
