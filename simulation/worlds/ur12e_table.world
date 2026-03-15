@@ -104,24 +104,13 @@
       </link>
     </model>
 
-    <!-- YOLO-detectable objects (Coke Cans — detected as 'bottle' by YOLOv8) -->
-    <!-- Robot base is at (-0.3, 0) so cans are placed in front/positive-x area -->
+    <!-- YOLO-detectable object — single Coke Can lying on its side -->
+    <!-- pitch=1.5707 so the label faces up toward top camera -->
+    <!-- z=0.808 = table surface (0.775) + can radius (~0.033m) -->
     <include>
       <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coke Can</uri>
       <name>coke_can_1</name>
-      <pose>0.25 0.15 0.86 0 0 0</pose>
-    </include>
-
-    <include>
-      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coke Can</uri>
-      <name>coke_can_2</name>
-      <pose>0.3 -0.1 0.86 0 0 0</pose>
-    </include>
-
-    <include>
-      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Coke Can</uri>
-      <name>coke_can_3</name>
-      <pose>0.1 -0.2 0.86 0 0 0</pose>
+      <pose>0.2 0.0 0.808 0 1.5707963 0</pose>
     </include>
 
     <!-- TOP camera — shifted toward table front so arm is at frame edge -->
