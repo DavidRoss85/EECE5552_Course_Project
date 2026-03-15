@@ -12,6 +12,8 @@ class TopicKey(str, Enum):
     VLA_INPUT = '/vla/input'
     VLA_OUTPUT = '/vla/output'
     MOVEIT_PLANNING = '/moveit/planning'
+    OBJECT_DETECTIONS = '/intent_selection/detections'
+    TEXT_COMMANDS = '/intent_selection/text_commands'
 
 from dataclasses import dataclass
 
@@ -27,6 +29,9 @@ class RosConfig:
     topic_vla_input: str=TopicKey.VLA_INPUT
     topic_vla_output: str=TopicKey.VLA_OUTPUT
     topic_moveit_planning: str=TopicKey.MOVEIT_PLANNING
+    topic_detections: str=TopicKey.OBJECT_DETECTIONS
+    topic_text_commands: str=TopicKey.TEXT_COMMANDS
     max_messages: int = 10
     sync_slop = 0.1
-    
+
+STD_CFG = RosConfig()
