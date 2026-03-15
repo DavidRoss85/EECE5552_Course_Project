@@ -58,6 +58,22 @@ def generate_launch_description():
         output='screen'
     )
 
+    # ── TODO: voice confirmation node ────────────────────────────────────────
+    # Publishes recognized speech to /intent_selection/text_commands (std_msgs/String)
+    # Trigger words ('select', 'grab', 'yes', 'confirm', 'take') confirm gaze selection
+    # without requiring a full dwell.  Wire in here once the speech node is ready:
+    #
+    # voice_confirmation_node = Node(
+    #     package='intent_selection',
+    #     executable='voice_confirmation_node',
+    #     name='voice_confirmation_node',
+    #     output='screen',
+    # )
+    # ── TODO: robot orientation node ─────────────────────────────────────────
+    # Reads selected pose from /gaze_tracking/selected_point and adjusts
+    # end-effector orientation to face the object before executing the move.
+    # ─────────────────────────────────────────────────────────────────────────
+
     return LaunchDescription([
         DeclareLaunchArgument('use_own_detection', default_value='true'),
         DeclareLaunchArgument('camera_device', default_value='/dev/video0'),
@@ -73,4 +89,5 @@ def generate_launch_description():
         detection_node,
         gaze_overlay_node,
         object_localizer_node,
+        # voice_confirmation_node,   # uncomment when ready
     ])

@@ -8,3 +8,4 @@ Course project files.
 - [UR12E Gazebo Setup](docs/UR12E_GAZEBO_SETUP.md) — Gazebo simulation setup
 - [UR12E Teleop](docs/UR12E_TELEOP.md) — Teleoperation with joystick and MoveIt Servo
 - [Simulation](simulation/README.md) — Simulation launch and usage
+- [Eye-Gaze Control Setup](docs/EYEGAZE_SETUP.md) — Eye-gaze pipeline setup and reproduction guide

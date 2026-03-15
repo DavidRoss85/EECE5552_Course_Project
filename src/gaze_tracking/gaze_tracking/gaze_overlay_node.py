@@ -160,8 +160,7 @@ def run_pygame(node: GazeOverlayNode):
     clock = pygame.time.Clock()
     f_sub = pygame.font.SysFont('monospace', max(14, SH // 60))
 
-    WHITE  = (255, 255, 255)
-    DIM    = (110, 110, 110)
+    DIM = (110, 110, 110)
 
     running = True
     while running:
