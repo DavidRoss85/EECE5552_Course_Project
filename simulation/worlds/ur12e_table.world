@@ -159,10 +159,10 @@
       </link>
     </model>
 
-    <!-- TOP camera — partial robot, full table, straight down -->
+    <!-- TOP camera — shifted toward table front so arm is at frame edge -->
     <model name="camera_top">
       <static>true</static>
-      <pose>-0.3 0 3.5 0 1.5707963 0</pose>
+      <pose>0.3 0 3.0 0 1.5707963 0</pose>
       <link name="link">
         <visual name="visual">
           <geometry><box><size>0.05 0.05 0.05</size></box></geometry>

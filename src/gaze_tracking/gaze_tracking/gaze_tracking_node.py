@@ -1,4 +1,6 @@
 import threading
+import time
+import math
 import numpy as np
 import cv2
 import rclpy
@@ -16,6 +18,7 @@ class GazeTrackingNode(Node):
         self.declare_parameter('env_image_width', 1280)
         self.declare_parameter('env_image_height', 720)
         self.declare_parameter('calib_points', 50)
+        self.declare_parameter('test_mode', False)  # skip EyeGestures, publish dummy gaze
 
         self._env_w = self.get_parameter('env_image_width').value
         self._env_h = self.get_parameter('env_image_height').value
@@ -40,11 +43,32 @@ class GazeTrackingNode(Node):
         self._calib_radius = 30
 
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._tracker_loop, daemon=True)
+        test_mode = self.get_parameter('test_mode').value
+        if test_mode:
+            self._calibrating = False  # skip calibration immediately
+            self._thread = threading.Thread(target=self._dummy_loop, daemon=True)
+            self.get_logger().info('Gaze tracking node ready (TEST MODE - no webcam)')
+        else:
+            self._thread = threading.Thread(target=self._tracker_loop, daemon=True)
+            self.get_logger().info('Gaze tracking node ready (EyeGestures v2)')
         self._thread.start()
 
         self.create_timer(1.0 / 30.0, self._publish_cb)
-        self.get_logger().info('Gaze tracking node ready (EyeGestures v2)')
+
+    def _dummy_loop(self):
+        """Publishes a slow sinusoidal gaze for pipeline testing without a webcam."""
+        t = 0.0
+        cx, cy = self._env_w // 2, self._env_h // 2
+        amp_x, amp_y = self._env_w * 0.3, self._env_h * 0.25
+        while not self._stop.is_set():
+            gx = int(cx + amp_x * math.sin(t * 0.4))
+            gy = int(cy + amp_y * math.sin(t * 0.25))
+            with self._lock:
+                self._gaze_x = gx
+                self._gaze_y = gy
+                self._calibrating = False
+            t += 0.05
+            time.sleep(0.033)
 
     def _tracker_loop(self):
         from eyeGestures.utils import VideoCapture
