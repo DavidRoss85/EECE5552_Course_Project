@@ -97,7 +97,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='camera_top_tf',
-        arguments=['--x', '0.3', '--y', '0', '--z', '3.0',
+        arguments=['--x', '0.3', '--y', '0', '--z', '1.8',
                    '--roll', '0', '--pitch', '1.5707963', '--yaw', '0',
                    '--frame-id', 'world',
                    '--child-frame-id', 'camera_top_optical_frame'],

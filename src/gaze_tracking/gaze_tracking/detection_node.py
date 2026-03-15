@@ -17,7 +17,7 @@ class DetectionNode(Node):
         super().__init__('gaze_detection_node')
 
         self.declare_parameter('model', 'yolov8n.pt')
-        self.declare_parameter('confidence_threshold', 0.25)
+        self.declare_parameter('confidence_threshold', 0.1)
         self.declare_parameter('rgb_topic', '/input/camera_feed/rgb/full_view')
 
         model_path = self.get_parameter('model').value

@@ -132,14 +132,13 @@ def run_pygame(node: GazeOverlayNode):
     pygame.init()
     pygame.font.init()
 
-    # windowed at camera native resolution — matches the camera feed 1:1, no scaling
-    SW, SH = CAM_W, CAM_H
+    SW, SH = 1920, 1080
 
-    screen = pygame.display.set_mode((SW, SH))
+    screen = pygame.display.set_mode((SW, SH), pygame.NOFRAME)
     pygame.display.set_caption('VisionGrip - Gaze Selection')
 
     clock = pygame.time.Clock()
-    f_sub = pygame.font.SysFont('monospace', 14)
+    f_sub = pygame.font.SysFont('monospace', max(14, SH // 60))
 
     WHITE  = (255, 255, 255)
     DIM    = (110, 110, 110)
@@ -211,9 +210,10 @@ def run_pygame(node: GazeOverlayNode):
         cv2.putText(canvas, 'VisionGrip  |  [r] reset  [q/ESC] quit',
                     (10, CAM_H - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (110, 110, 110), 1)
 
-        # -- Convert BGR canvas -> pygame surface (1:1, no scaling) --
+        # -- Convert BGR canvas -> pygame surface -> scale to 1920x1080 --
         canvas_rgb = canvas[:, :, ::-1]
         surf = pygame.surfarray.make_surface(np.transpose(canvas_rgb, (1, 0, 2)))
+        surf = pygame.transform.scale(surf, (SW, SH))
         screen.blit(surf, (0, 0))
 
         # Status bar
