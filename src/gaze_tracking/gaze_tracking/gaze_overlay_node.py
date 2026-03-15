@@ -139,12 +139,10 @@ def run_pygame(node: GazeOverlayNode):
     pygame.display.set_caption('VisionGrip - Gaze Selection')
 
     clock = pygame.time.Clock()
-    f_hud = pygame.font.SysFont('monospace', max(22, SH // 40), bold=True)
     f_sub = pygame.font.SysFont('monospace', max(14, SH // 60))
 
     WHITE  = (255, 255, 255)
     DIM    = (110, 110, 110)
-    RED    = (200,  30,  30)
 
     running = True
     while running:
@@ -207,11 +205,6 @@ def run_pygame(node: GazeOverlayNode):
         surf = pygame.surfarray.make_surface(np.transpose(canvas_rgb, (1, 0, 2)))
         surf = pygame.transform.scale(surf, (SW, SH))
         screen.blit(surf, (0, 0))
-
-        # Title bar overlay (same style as eye_arm_controller.py)
-        title = f_hud.render('VISIONGRIP  |  ABDUL RAHMAN  |  NEU ROBOTICS', True, RED)
-        screen.blit(title, (SW // 2 - title.get_width() // 2, 8))
-        pygame.draw.line(screen, (60, 15, 15), (0, 36), (SW, 36), 1)
 
         # Status bar
         status = 'CALIBRATING' if calibrating else 'TRACKING'
