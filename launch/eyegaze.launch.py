@@ -8,9 +8,6 @@ from launch_ros.actions import Node
 def generate_launch_description():
     use_own_detection = LaunchConfiguration('use_own_detection', default='true')
     camera_device = LaunchConfiguration('camera_device', default='/dev/video0')
-    use_ros_camera = LaunchConfiguration('use_ros_camera', default='false')
-    user_camera_topic = LaunchConfiguration(
-        'user_camera_topic', default='/input/camera_feed/rgb/eye_camera')
     depth_topic = LaunchConfiguration('depth_topic', default='/cameras/top/depth')
     camera_info_topic = LaunchConfiguration(
         'camera_info_topic', default='/cameras/top/camera_info')
@@ -60,9 +57,6 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_own_detection', default_value='true'),
         DeclareLaunchArgument('camera_device', default_value='/dev/video0'),
-        DeclareLaunchArgument('use_ros_camera', default_value='false'),
-        DeclareLaunchArgument('user_camera_topic',
-                              default_value='/input/camera_feed/rgb/eye_camera'),
         DeclareLaunchArgument('depth_topic', default_value='/cameras/top/depth'),
         DeclareLaunchArgument('camera_info_topic',
                               default_value='/cameras/top/camera_info'),
