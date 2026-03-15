@@ -75,10 +75,10 @@ class DetectionNode(Node):
             # Publisher
             self._detection_pub = self.create_publisher(
                 DetectedList,
-                self._ros_config.detections_topic,
+                self._ros_config.topic_detections,
                 self._ros_config.max_messages
             )
-            self.get_logger().info(f'Publisher created on topic: {self._ros_config.detections_topic}')
+            self.get_logger().info(f'Publisher created on topic: {self._ros_config.topic_detections}')
 
             self.get_logger().info('Detection Node initialized and ready.')
         except Exception as e:
