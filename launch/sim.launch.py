@@ -98,7 +98,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='camera_top_tf',
         arguments=['--x', '0.3', '--y', '0', '--z', '2.2',
-                   '--roll', '0', '--pitch', '1.5707963', '--yaw', '0',
+                   '--roll', '3.14159', '--pitch', '0', '--yaw', '0',
                    '--frame-id', 'world',
                    '--child-frame-id', 'camera_top_optical_frame'],
         output='screen'
