@@ -42,7 +42,6 @@ class GazeOverlayNode(Node):
         self.create_subscription(
             String, '/intent_selection/text_commands', self._voice_cb, 10)
 
-        self.create_timer(1.0 / 30.0, self._render)
         self.get_logger().info('Gaze overlay node ready')
 
     def _image_cb(self, msg: Image):
@@ -77,7 +76,7 @@ class GazeOverlayNode(Node):
         self._selected_pub.publish(msg)
         self.get_logger().info(f'Selected object at pixel ({cx}, {cy})')
 
-    def _render(self):
+    def render(self):
         if self._latest_frame is None:
             return
 
@@ -100,20 +99,22 @@ class GazeOverlayNode(Node):
             if selected:
                 self._publish_selected(*selected.center)
 
-        cv2.imshow('VisionGrip — Gaze Selection', frame)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            raise KeyboardInterrupt
-        elif key == ord('r'):
-            self._dwell.targets = []
-            self.get_logger().info('Dwell targets reset')
+        cv2.imshow('VisionGrip - Gaze Selection', frame)
 
 
 def main():
     rclpy.init()
     node = GazeOverlayNode()
     try:
-        rclpy.spin(node)
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.01)
+            node.render()
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            elif key == ord('r'):
+                node._dwell.targets = []
+                node.get_logger().info('Dwell targets reset')
     finally:
         cv2.destroyAllWindows()
         rclpy.shutdown()
