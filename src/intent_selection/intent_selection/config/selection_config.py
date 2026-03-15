@@ -6,8 +6,8 @@ VERBAL_COMMANDS = [
 ]
 
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class SelectionConfig:
-    text_commands: list = VERBAL_COMMANDS
+    text_commands: list[str] = field(default_factory=lambda: VERBAL_COMMANDS)
