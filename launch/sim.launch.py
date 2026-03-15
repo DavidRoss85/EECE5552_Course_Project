@@ -104,9 +104,17 @@ def generate_launch_description():
         output='screen'
     )
 
+    goal_controller_node = Node(
+        package='robot_control',
+        executable='goal_controller',
+        name='goal_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
     moveit = TimerAction(
         period=10.0,
-        actions=[move_group_node, rviz_node]
+        actions=[move_group_node, rviz_node, goal_controller_node]
     )
 
     cameras = TimerAction(
