@@ -24,6 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'object_detections_node = intent_selection.nodes.object_detections:main',
+            'object_selection_node = intent_selection.nodes.object_selection:main',
         ],
     },
 )
