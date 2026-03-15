@@ -65,6 +65,7 @@ class RosConfig:
     topic_vla_output: str=TopicKey.VLA_OUTPUT
     topic_moveit_planning: str=TopicKey.MOVEIT_PLANNING
     detections_topic: str=TopicKey.OBJECT_DETECTIONS
+    topic_text_commands: str='/intent_selection/text_commands' 
     max_messages: int = 10
     sync_slop = 0.1
 
