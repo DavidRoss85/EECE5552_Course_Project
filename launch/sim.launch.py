@@ -80,7 +80,27 @@ def generate_launch_description():
             '/cameras/top/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/side/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/front/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/cameras/top/depth@sensor_msgs/msg/Image[gz.msgs.Image',
         ],
+        output='screen'
+    )
+
+    topic_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='top_camera_relay',
+        arguments=['/cameras/top/image_raw', '/input/camera_feed/rgb/full_view'],
+        output='screen'
+    )
+
+    camera_top_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='camera_top_tf',
+        arguments=['--x', '-0.3', '--y', '0', '--z', '3.5',
+                   '--roll', '0', '--pitch', '1.5707963', '--yaw', '0',
+                   '--frame-id', 'world',
+                   '--child-frame-id', 'camera_top_optical_frame'],
         output='screen'
     )
 
@@ -98,4 +118,6 @@ def generate_launch_description():
         gazebo_and_controllers,
         moveit,
         cameras,
+        topic_relay,
+        camera_top_tf,
     ])
