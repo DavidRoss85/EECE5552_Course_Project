@@ -66,14 +66,34 @@ class GazeOverlayNode(Node):
     def _detections_cb(self, msg):
         with self._lock:
             self._current_detections = msg.item_list
-            self._dwell.targets = []
+
+            # Build new target list from detections
+            new_targets = []
             for item in self._current_detections:
                 if len(item.xyxy) < 4:
                     continue
                 x1, y1, x2, y2 = item.xyxy[0], item.xyxy[1], item.xyxy[2], item.xyxy[3]
                 center = ((x1 + x2) // 2, (y1 + y2) // 2)
-                radius = int(np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2)
-                self._dwell.add_target(center, max(radius, 20), item.name)
+                radius = max(int(np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) / 2), 20)
+                new_targets.append((item.name, center, radius))
+
+            # Merge: update position of existing targets to avoid resetting dwell state
+            existing = {t.name: t for t in self._dwell.targets}
+            updated = []
+            for name, center, radius in new_targets:
+                if name in existing:
+                    t = existing[name]
+                    t.center = center
+                    t.radius = radius
+                    updated.append(t)
+                else:
+                    from gaze_tracking.gaze_utils import DwellTarget
+                    updated.append(DwellTarget(
+                        center=center, radius=radius,
+                        dwell_time=0.0, dwell_threshold=self._dwell.dwell_threshold,
+                        selected=False, name=name,
+                    ))
+            self._dwell.targets = updated
 
     def _gaze_cb(self, msg):
         with self._lock:
