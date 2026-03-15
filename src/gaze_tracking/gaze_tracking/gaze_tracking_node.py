@@ -17,7 +17,7 @@ class GazeTrackingNode(Node):
         self.declare_parameter('camera_device', '/dev/video0')
         self.declare_parameter('env_image_width', 1280)
         self.declare_parameter('env_image_height', 720)
-        self.declare_parameter('calib_points', 50)
+        self.declare_parameter('calib_points', 25)
         self.declare_parameter('test_mode', False)  # skip EyeGestures, publish dummy gaze
 
         self._env_w = self.get_parameter('env_image_width').value
