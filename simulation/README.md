@@ -22,12 +22,14 @@ simulation/
 launch/
 ├── sim.launch.py                      # main launch (Gazebo + MoveIt + Servo + automation)
 ├── teleop.launch.py                   # joystick teleop (joy + teleop_twist_joy + teleop_controller)
+├── teleop_joy_for_lerobot.launch.py   # for LeRobot: joy + teleop_twist_joy + home_button_node
 └── camera_bridge.launch.py            # gz → ROS 2 camera bridge (included in sim)
 
 src/robot_control/robot_control/
 ├── environment_setup.py               # publishes table to MoveIt planning scene
 ├── goal_controller.py                 # accepts /goal_pose and executes motion
-└── teleop_controller.py               # bridges twist → Servo, B button → home
+├── teleop_controller.py               # bridges twist → Servo, B button → home
+└── home_button_node.py                # B button → home (used with teleop_joy_for_lerobot)
 
 scripts/
 └── send_goal.py                       # sends a pose goal to the robot
@@ -97,13 +99,25 @@ Wait for "You can start planning now!" and for the automated steps to complete (
 
 ### Step 2 — Launch teleop (Terminal 2)
 
+**Option A: Standalone teleop (no LeRobot)**
+
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/EECE5552_Course_Project/install/setup.bash
 ros2 launch launch/teleop.launch.py
 ```
 
-This starts joy_node, teleop_twist_joy, and teleop_controller. See [docs/UR12E_TELEOP.md](../docs/UR12E_TELEOP.md) for joystick mapping and B-button home.
+Starts joy_node, teleop_twist_joy, and teleop_controller.
+
+**Option B: For LeRobot recording**
+
+```bash
+ros2 launch launch/teleop_joy_for_lerobot.launch.py
+```
+
+Starts joy_node, teleop_twist_joy, and home_button_node. Then run `lerobot-teleoperate` or `lerobot-record` in another terminal. See [docs/UR12E_LEROBOT.md](../docs/UR12E_LEROBOT.md).
+
+See [docs/UR12E_TELEOP.md](../docs/UR12E_TELEOP.md) for joystick mapping and B-button home.
 
 ---
 
@@ -198,4 +212,5 @@ pkill -f gz; pkill -f rviz2; pkill -f move_group; sleep 3
 ## Related
 
 - [UR12E_TELEOP.md](../docs/UR12E_TELEOP.md) — Joystick teleop and B-button home
+- [UR12E_LEROBOT.md](../docs/UR12E_LEROBOT.md) — LeRobot recording with ros_twist
 - [UR12E_GAZEBO_SETUP.md](../docs/UR12E_GAZEBO_SETUP.md) — UR simulator installation

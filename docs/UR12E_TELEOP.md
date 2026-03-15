@@ -115,7 +115,14 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ---
 
+## LeRobot Recording
+
+For imitation learning with LeRobot (record → train → evaluate), use `teleop_joy_for_lerobot.launch.py` and `lerobot-teleoperate` with `ros_twist`. See **[UR12E_LEROBOT.md](UR12E_LEROBOT.md)** for setup and workflow.
+
+---
+
 ## Related
 
+- [UR12E_LEROBOT.md](UR12E_LEROBOT.md) — LeRobot recording with ros_twist
 - [simulation/README.md](../simulation/README.md) — Sim setup and goal-based control
 - `scripts/send_goal.py` — Pose goals via MoveIt
