@@ -311,3 +311,100 @@ class DwellSelectionSystem:
             cv2.putText(frame, target.name,
                         (target.center[0] - 40, target.center[1] - target.radius - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+
+class CalibrationManager:
+    """Multi-point affine calibration: maps raw incoming gaze pixels to corrected screen coords."""
+
+    _GRID = [
+        (0.1, 0.1), (0.5, 0.1), (0.9, 0.1),
+        (0.1, 0.5), (0.5, 0.5), (0.9, 0.5),
+        (0.1, 0.9), (0.5, 0.9), (0.9, 0.9),
+    ]
+    _SAMPLES_PER_POINT = 30
+
+    def __init__(self):
+        self.active = False
+        self._w = 1280
+        self._h = 720
+        self._idx = 0
+        self._targets: List[Tuple[int, int]] = []
+        self._raw_samples: List[np.ndarray] = []
+        self._buf: List[Tuple[int, int]] = []
+        self._transform = None  # shape (3, 2) from lstsq
+
+    def start(self, w: int, h: int):
+        self.active = True
+        self._w, self._h = w, h
+        self._idx = 0
+        self._targets = [(int(nx * w), int(ny * h)) for nx, ny in self._GRID]
+        self._raw_samples = []
+        self._buf = []
+        self._transform = None
+
+    @property
+    def is_calibrated(self) -> bool:
+        return self._transform is not None
+
+    def feed(self, gaze_px: Tuple[int, int]) -> bool:
+        """Feed one raw gaze pixel. Returns True when a calibration point is committed."""
+        if not self.active or gaze_px is None:
+            return False
+        self._buf.append(gaze_px)
+        if len(self._buf) >= self._SAMPLES_PER_POINT:
+            avg = np.mean(self._buf, axis=0)
+            self._raw_samples.append(avg)
+            self._buf = []
+            self._idx += 1
+            if self._idx >= len(self._targets):
+                self._fit()
+                self.active = False
+            return True
+        return False
+
+    def _fit(self):
+        src = np.array(self._raw_samples, dtype=np.float32)
+        dst = np.array(self._targets, dtype=np.float32)
+        src_aug = np.hstack([src, np.ones((len(src), 1))])
+        M, _, _, _ = np.linalg.lstsq(src_aug, dst, rcond=None)
+        self._transform = M  # (3, 2)
+
+    def apply(self, gaze_px: Tuple[int, int]) -> Tuple[int, int]:
+        """Return calibration-corrected pixel. Returns input unchanged if not calibrated."""
+        if self._transform is None or gaze_px is None:
+            return gaze_px
+        pt = np.array([gaze_px[0], gaze_px[1], 1.0], dtype=np.float32)
+        result = pt @ self._transform
+        x = int(np.clip(result[0], 0, self._w - 1))
+        y = int(np.clip(result[1], 0, self._h - 1))
+        return x, y
+
+    def render(self, frame: np.ndarray):
+        """Draw calibration overlay onto frame. Call only when active=True."""
+        if not self.active:
+            return
+        dim = frame.copy()
+        cv2.rectangle(dim, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 0), -1)
+        cv2.addWeighted(dim, 0.5, frame, 0.5, 0, frame)
+
+        for i, (tx, ty) in enumerate(self._targets):
+            if i < self._idx:
+                cv2.circle(frame, (tx, ty), 12, (0, 220, 0), -1)
+            elif i == self._idx:
+                progress = len(self._buf) / self._SAMPLES_PER_POINT
+                cv2.circle(frame, (tx, ty), 18, (255, 255, 255), 2)
+                cv2.ellipse(frame, (tx, ty), (18, 18), -90, 0, int(360 * progress), (0, 255, 255), 4)
+                cv2.circle(frame, (tx, ty), 5, (255, 255, 255), -1)
+            else:
+                cv2.circle(frame, (tx, ty), 12, (80, 80, 80), 2)
+
+        done, total = self._idx, len(self._targets)
+        cv2.putText(frame, f'CALIBRATION  {done}/{total}',
+                    (frame.shape[1] // 2 - 140, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        cv2.putText(frame, 'Look steadily at the white dot',
+                    (frame.shape[1] // 2 - 175, 90),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (200, 200, 200), 1)
+        cv2.putText(frame, 'ESC to cancel',
+                    (frame.shape[1] // 2 - 70, 120),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (150, 150, 150), 1)

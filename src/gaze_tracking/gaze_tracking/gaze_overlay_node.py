@@ -30,6 +30,10 @@ class GazeOverlayNode(Node):
         self._current_detections = []
         self._gaze_point = None
         self._latest_frame = None
+        self._calibrating = True
+        self._calib_cx = 0
+        self._calib_cy = 0
+        self._calib_radius = 30
 
         self._selected_pub = self.create_publisher(
             Point, '/gaze_tracking/selected_point', 10)
@@ -41,6 +45,8 @@ class GazeOverlayNode(Node):
             Point, '/input/eye_gaze/coords', self._gaze_cb, 10)
         self.create_subscription(
             String, '/intent_selection/text_commands', self._voice_cb, 10)
+        self.create_subscription(
+            Point, '/gaze_tracking/calibration_point', self._calib_cb, 10)
 
         self.get_logger().info('Gaze overlay node ready')
 
@@ -60,6 +66,12 @@ class GazeOverlayNode(Node):
 
     def _gaze_cb(self, msg: Point):
         self._gaze_point = (int(msg.x), int(msg.y))
+
+    def _calib_cb(self, msg: Point):
+        self._calibrating = msg.z >= 0.0
+        self._calib_cx = int(msg.x)
+        self._calib_cy = int(msg.y)
+        self._calib_radius = int(msg.z) if msg.z >= 0 else 30
 
     def _voice_cb(self, msg: String):
         if msg.data.strip().lower() in CONFIRM_PHRASES:
@@ -82,6 +94,22 @@ class GazeOverlayNode(Node):
 
         frame = self._latest_frame.copy()
 
+        # --- calibration overlay ---
+        if self._calibrating:
+            dim = frame.copy()
+            cv2.rectangle(dim, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 0), -1)
+            cv2.addWeighted(dim, 0.5, frame, 0.5, 0, frame)
+            pt = (self._calib_cx, self._calib_cy)
+            cv2.circle(frame, pt, self._calib_radius + 8, (40, 40, 180), -1)
+            cv2.circle(frame, pt, self._calib_radius, (80, 80, 255), -1)
+            cv2.circle(frame, pt, 8, (255, 255, 255), -1)
+            cv2.putText(frame, 'CALIBRATING - stare at the dot',
+                        (frame.shape[1] // 2 - 220, 45),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            cv2.imshow('VisionGrip - Gaze Selection', frame)
+            return
+
+        # --- normal mode ---
         for item in self._current_detections:
             if len(item.xyxy) < 4:
                 continue
@@ -105,6 +133,11 @@ class GazeOverlayNode(Node):
 def main():
     rclpy.init()
     node = GazeOverlayNode()
+
+    cv2.namedWindow('VisionGrip - Gaze Selection', cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty('VisionGrip - Gaze Selection',
+                          cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+
     try:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.01)

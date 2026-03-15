@@ -1,12 +1,9 @@
-import cv2
+import threading
 import numpy as np
+import cv2
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Point
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-
-from gaze_tracking.gaze_utils import GazeDirectionTracker
 
 print(''.join(chr(x-7) for x in [104,105,107,124,115,39,121,104,111,116,104,117]))
 
@@ -16,54 +13,99 @@ class GazeTrackingNode(Node):
         super().__init__('gaze_tracking_node')
 
         self.declare_parameter('camera_device', '/dev/video0')
-        self.declare_parameter('use_ros_camera', False)
-        self.declare_parameter('user_camera_topic', '/input/camera_feed/rgb/eye_camera')
         self.declare_parameter('env_image_width', 1280)
         self.declare_parameter('env_image_height', 720)
+        self.declare_parameter('calib_points', 50)
 
-        self._tracker = GazeDirectionTracker()
-        self._bridge = CvBridge()
         self._env_w = self.get_parameter('env_image_width').value
         self._env_h = self.get_parameter('env_image_height').value
+        self._calib_pts = self.get_parameter('calib_points').value
 
-        self._pub = self.create_publisher(Point, '/input/eye_gaze/coords', 10)
+        cam_param = self.get_parameter('camera_device').value
+        try:
+            self._cam_index = int(cam_param)
+        except (ValueError, TypeError):
+            self._cam_index = 0
 
-        use_ros = self.get_parameter('use_ros_camera').value
-        if use_ros:
-            topic = self.get_parameter('user_camera_topic').value
-            self.create_subscription(Image, topic, self._ros_camera_cb, 10)
-            self.get_logger().info(f'Gaze tracker reading from ROS topic: {topic}')
-        else:
-            device_param = self.get_parameter('camera_device').value
+        self._gaze_pub = self.create_publisher(Point, '/input/eye_gaze/coords', 10)
+        self._calib_pub = self.create_publisher(Point, '/gaze_tracking/calibration_point', 10)
+
+        # Shared state with tracker thread
+        self._lock = threading.Lock()
+        self._gaze_x = self._env_w // 2
+        self._gaze_y = self._env_h // 2
+        self._calibrating = True
+        self._calib_cx = self._env_w // 2
+        self._calib_cy = self._env_h // 2
+        self._calib_radius = 30
+
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._tracker_loop, daemon=True)
+        self._thread.start()
+
+        self.create_timer(1.0 / 30.0, self._publish_cb)
+        self.get_logger().info('Gaze tracking node ready (EyeGestures v2)')
+
+    def _tracker_loop(self):
+        from eyeGestures.utils import VideoCapture
+        from eyeGestures import EyeGestures_v2
+
+        gestures = EyeGestures_v2()
+        cap = VideoCapture(self._cam_index)
+
+        x = np.arange(0, 1.1, 0.2)
+        y = np.arange(0, 1.1, 0.2)
+        xx, yy = np.meshgrid(x, y)
+        cal_map = np.column_stack([xx.ravel(), yy.ravel()])
+        np.random.shuffle(cal_map)
+        gestures.uploadCalibrationMap(cal_map, context='vg_ctx')
+        gestures.setClassicalImpact(2)
+        gestures.setFixation(1.0)
+
+        iterator = 0
+        prev_pt = (0, 0)
+
+        while not self._stop.is_set():
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            calibrate = iterator < self._calib_pts
             try:
-                device = int(device_param)
-            except (ValueError, TypeError):
-                device = device_param
-            self._cap = cv2.VideoCapture(device)
-            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-            self.create_timer(1.0 / 30.0, self._webcam_cb)
-            self.get_logger().info(f'Gaze tracker reading from device: {device}')
+                event, calibration = gestures.step(
+                    frame_rgb, calibrate, self._env_w, self._env_h, context='vg_ctx')
+            except Exception:
+                continue
+            if event is None:
+                continue
 
-    def _process_and_publish(self, frame):
-        frame = cv2.flip(frame, 1)
-        gaze_dir, _ = self._tracker.process_frame(frame)
-        if gaze_dir is None:
-            return
-        env_shape = (self._env_h, self._env_w, 3)
-        gx, gy = self._tracker.project_gaze_to_screen(gaze_dir, frame.shape, env_shape)
-        msg = Point(x=float(gx), y=float(gy), z=0.0)
-        self._pub.publish(msg)
+            with self._lock:
+                self._gaze_x = int(event.point[0])
+                self._gaze_y = int(event.point[1])
+                self._calibrating = calibrate
+                if calibrate and calibration is not None:
+                    cx, cy = calibration.point
+                    self._calib_cx = int(cx)
+                    self._calib_cy = int(cy)
+                    self._calib_radius = int(calibration.acceptance_radius)
+                    if (cx, cy) != prev_pt:
+                        iterator += 1
+                        prev_pt = (cx, cy)
 
-    def _webcam_cb(self):
-        ret, frame = self._cap.read()
-        if not ret:
-            return
-        self._process_and_publish(frame)
+    def _publish_cb(self):
+        with self._lock:
+            gx, gy = self._gaze_x, self._gaze_y
+            calibrating = self._calibrating
+            cx, cy, cr = self._calib_cx, self._calib_cy, self._calib_radius
 
-    def _ros_camera_cb(self, msg: Image):
-        frame = self._bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        self._process_and_publish(frame)
+        self._gaze_pub.publish(Point(x=float(gx), y=float(gy), z=0.0))
+        # z >= 0 means calibrating (z = acceptance_radius); z = -1 means done
+        self._calib_pub.publish(
+            Point(x=float(cx), y=float(cy), z=float(cr) if calibrating else -1.0))
+
+    def destroy_node(self):
+        self._stop.set()
+        super().destroy_node()
 
 
 def main():
@@ -72,6 +114,7 @@ def main():
     try:
         rclpy.spin(node)
     finally:
+        node.destroy_node()
         rclpy.shutdown()
 
 
