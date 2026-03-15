@@ -14,6 +14,9 @@ def generate_launch_description():
     env_image_width = LaunchConfiguration('env_image_width', default='1280')
     env_image_height = LaunchConfiguration('env_image_height', default='720')
     test_mode = LaunchConfiguration('test_mode', default='false')
+    # side camera gives a natural frontal view so YOLO recognises upright cans as bottles
+    env_rgb_topic = LaunchConfiguration(
+        'env_rgb_topic', default='/cameras/side/image_raw')
 
     gaze_tracking_node = Node(
         package='gaze_tracking',
@@ -33,6 +36,7 @@ def generate_launch_description():
         executable='detection_node',
         name='gaze_detection_node',
         condition=IfCondition(use_own_detection),
+        parameters=[{'rgb_topic': env_rgb_topic}],
         output='screen'
     )
 
@@ -40,6 +44,7 @@ def generate_launch_description():
         package='gaze_tracking',
         executable='gaze_overlay_node',
         name='gaze_overlay_node',
+        parameters=[{'rgb_topic': env_rgb_topic}],
         output='screen'
     )
 
@@ -63,6 +68,8 @@ def generate_launch_description():
         DeclareLaunchArgument('env_image_width', default_value='1280'),
         DeclareLaunchArgument('env_image_height', default_value='720'),
         DeclareLaunchArgument('test_mode', default_value='false'),
+        DeclareLaunchArgument('env_rgb_topic',
+                              default_value='/cameras/side/image_raw'),
         gaze_tracking_node,
         detection_node,
         gaze_overlay_node,
