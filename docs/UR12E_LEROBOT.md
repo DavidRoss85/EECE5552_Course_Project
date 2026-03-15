@@ -40,26 +40,16 @@ sudo apt install ros-jazzy-joy ros-jazzy-teleop-twist-joy
 
 ### 2. LeRobot and lerobot-ros
 
+Use the **lerobot-ros included in this project** (`lerobot-ros/`):
+
 ```bash
 conda create -y -n lerobot-ros python=3.12
 conda activate lerobot-ros
 conda install -c conda-forge libstdcxx-ng -y
 
 source /opt/ros/jazzy/setup.bash
-```
 
-If lerobot-ros is inside this project:
-
-```bash
 cd ~/EECE5552_Course_Project/lerobot-ros
-pip install -e lerobot_robot_ros lerobot_teleoperator_devices
-```
-
-Otherwise clone and install:
-
-```bash
-git clone https://github.com/ycheng517/lerobot-ros
-cd lerobot-ros
 pip install -e lerobot_robot_ros lerobot_teleoperator_devices
 ```
 
@@ -153,7 +143,7 @@ Configure cameras via `--robot.cameras.*` as needed. See [LeRobot docs](https://
 | File / launch              | Role                                          |
 |---------------------------|-----------------------------------------------|
 | `teleop_joy_for_lerobot.launch.py` | joy + teleop_twist_joy + home_button_node |
-| `lerobot-ros/lerobot_teleoperator_devices/.../ros_twist.py` | Twist → 6-DOF actions          |
+| `lerobot-ros/lerobot_teleoperator_devices/.../ros_twist.py` | Twist → 6-DOF (in this project) |
 | `lerobot-ros/lerobot_robot_ros/.../config.py` | ur12e_ros config (tool0, velocity limits) |
 | `robot_control/home_button_node.py`           | B → home pose                     |
 
