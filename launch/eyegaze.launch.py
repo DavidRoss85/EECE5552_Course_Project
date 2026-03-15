@@ -16,6 +16,7 @@ def generate_launch_description():
         'camera_info_topic', default='/cameras/top/camera_info')
     env_image_width = LaunchConfiguration('env_image_width', default='1280')
     env_image_height = LaunchConfiguration('env_image_height', default='720')
+    test_mode = LaunchConfiguration('test_mode', default='false')
 
     gaze_tracking_node = Node(
         package='gaze_tracking',
@@ -23,10 +24,9 @@ def generate_launch_description():
         name='gaze_tracking_node',
         parameters=[{
             'camera_device': camera_device,
-            'use_ros_camera': use_ros_camera,
-            'user_camera_topic': user_camera_topic,
             'env_image_width': env_image_width,
             'env_image_height': env_image_height,
+            'test_mode': test_mode,
         }],
         output='screen'
     )
@@ -68,6 +68,7 @@ def generate_launch_description():
                               default_value='/cameras/top/camera_info'),
         DeclareLaunchArgument('env_image_width', default_value='1280'),
         DeclareLaunchArgument('env_image_height', default_value='720'),
+        DeclareLaunchArgument('test_mode', default_value='false'),
         gaze_tracking_node,
         detection_node,
         gaze_overlay_node,
