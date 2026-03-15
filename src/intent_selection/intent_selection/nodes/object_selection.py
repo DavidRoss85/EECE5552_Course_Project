@@ -61,7 +61,7 @@ class GazeCommandNode(Node):
             )
 
             self.get_logger().info(
-                f'Subscribed to gaze topic: {self._ros_config.topic_eye_gaze}'
+                f'Subscribed to gaze topic: {self._ros_config.topic_eye_gaze.value}'
             )
 
             # --------------------------------------------------
@@ -77,7 +77,7 @@ class GazeCommandNode(Node):
             )
 
             self.get_logger().info(
-                f'Subscribed to text command topic: {self._ros_config.topic_text_commands}'
+                f'Subscribed to text command topic: {self._ros_config.topic_text_commands.value}'
             )
 
             # --------------------------------------------------
@@ -91,7 +91,7 @@ class GazeCommandNode(Node):
             )
 
             self.get_logger().info(
-                f'Publisher created on topic: {self._ros_config.topic_vla_input}'
+                f'Publisher created on topic: {self._ros_config.topic_vla_input.value}'
             )
 
             self.get_logger().info('Gaze Command Node initialized and ready.')
