@@ -184,9 +184,13 @@ def run_pygame(node: GazeOverlayNode):
                 if len(item.xyxy) < 4:
                     continue
                 x1, y1, x2, y2 = item.xyxy[0], item.xyxy[1], item.xyxy[2], item.xyxy[3]
-                cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 200, 255), 2)
-                cv2.putText(canvas, f'{item.name} {item.confidence:.2f}',
-                            (x1, y1 - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 200, 255), 1)
+                # bright thick bbox so it's obvious
+                cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 200, 255), 3)
+                label = f'{item.name} {item.confidence:.2f}'
+                (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+                cv2.rectangle(canvas, (x1, y1 - lh - 10), (x1 + lw + 4, y1), (0, 200, 255), -1)
+                cv2.putText(canvas, label,
+                            (x1 + 2, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1)
 
             node.draw_dwell_targets(canvas)
 
@@ -196,6 +200,13 @@ def run_pygame(node: GazeOverlayNode):
                 selected = node.update_dwell(gaze_pt)
                 if selected:
                     node.publish_selected(*selected.center)
+
+            # detection count badge
+            n = len(detections)
+            badge = f'{n} obj detected' if n else 'no detections'
+            badge_color = (0, 200, 255) if n else (60, 60, 200)
+            cv2.putText(canvas, badge, (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, badge_color, 2)
 
         cv2.putText(canvas, 'VisionGrip  |  [r] reset  [q/ESC] quit',
                     (10, CAM_H - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (110, 110, 110), 1)
