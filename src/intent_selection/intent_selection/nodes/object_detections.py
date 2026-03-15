@@ -25,7 +25,7 @@ from ultralytics import YOLO #pip3 install typeguard ultralytics
 # export PYTHONPATH=</path/to/your/virtual/environment>/lib/python3.12/site-packages:$PYTHONPATH
 
 # Configurations:
-# from robot_common.config.ros_presets import STD_CFG
+from intent_selection.config.ros_presets import STD_CFG
 from intent_selection.config.detection_presets import DEFAULT_DETECTION_CONFIG
 from intent_selection.config.yolo_presets import(
     DEFAULT_YOLO_CONFIG, 
@@ -33,45 +33,6 @@ from intent_selection.config.yolo_presets import(
     YoloConfig,
     DetectionFilterMode as DetecMode
 )
-
-#######################################################################
-#TEMP: MOVE THIS TO A CONFIG FILE LATER:
-from enum import Enum
-
-USING_GAZEBO = True
-
-# Enum for various topics:
-class TopicKey(str, Enum):
-    RGB_FEED = '/input/camera_feed/rgb/'
-    DEPTH_FEED = '/input/camera_feed/depth/'
-    EYE_GAZE = '/input/eye_gaze/coords'
-    VLA_INPUT = '/vla/input'
-    VLA_OUTPUT = '/vla/output'
-    MOVEIT_PLANNING = '/moveit/planning'
-    OBJECT_DETECTIONS = '/intent_selection/detections'
-
-from dataclasses import dataclass
-
-# Data class for ros configurations
-@dataclass(frozen=True)
-class RosConfig:
-    topic_full_view_rgb: str=TopicKey.RGB_FEED + 'full_view'
-    topic_full_view_depth: str=TopicKey.DEPTH_FEED + 'full_view'
-    topic_object_view_rgb: str=TopicKey.RGB_FEED + 'object_view'
-    topic_object_view_depth: str=TopicKey.DEPTH_FEED + 'object_view'
-    topic_eye_camera_rgb: str=TopicKey.RGB_FEED + 'eye_camera'
-    topic_eye_gaze: str=TopicKey.EYE_GAZE
-    topic_vla_input: str=TopicKey.VLA_INPUT
-    topic_vla_output: str=TopicKey.VLA_OUTPUT
-    topic_moveit_planning: str=TopicKey.MOVEIT_PLANNING
-    detections_topic: str=TopicKey.OBJECT_DETECTIONS
-    topic_text_commands: str='/intent_selection/text_commands' 
-    max_messages: int = 10
-    sync_slop = 0.1
-
-STD_CFG = RosConfig()
-#############################################################################
-
 
 
 class DetectionNode(Node):

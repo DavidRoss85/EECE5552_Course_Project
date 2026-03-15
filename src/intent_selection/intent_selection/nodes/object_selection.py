@@ -17,13 +17,11 @@ from std_msgs.msg import String
 
 # Placeholder interfaces
 # These will be replaced later with actual message definitions
-from std_msgs.msg import String as VlaInputMessage   #STUB
+from std_msgs.msg import String as VlaInputMessage 
 
 # Configuration imports
 from intent_selection.config.selection_presets import DEFAULT_SELECTION_CONFIG
-# TEMP CONFIG IMPORT
-# This will later move to robot_common
-from object_detections import STD_CFG   #STUB
+from intent_selection.config.ros_presets import STD_CFG 
 
 
 

@@ -6,9 +6,6 @@ from intent_selection.config.yolo_config import(
     ComputePreference
 )
 
-#Intend to build a factory later:
-
-
 DEFAULT_YOLO_CONFIG = YoloConfig(
     model=YoloModel.MEDIUM,
     compute_preference=ComputePreference.MAX_THROUGHPUT,
