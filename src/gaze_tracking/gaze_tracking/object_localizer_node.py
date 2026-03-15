@@ -92,6 +92,8 @@ class ObjectLocalizerNode(Node):
         try:
             world_pose = self._tf_buffer.transform(
                 cam_pose, 'world', timeout=Duration(seconds=1.0))
+            # approach 15cm above the object so the arm doesn't collide with the table
+            world_pose.pose.position.z += 0.15
             self._goal_pub.publish(world_pose)
             p = world_pose.pose.position
             self.get_logger().info(f'Goal published: x={p.x:.3f} y={p.y:.3f} z={p.z:.3f}')

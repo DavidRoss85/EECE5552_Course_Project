@@ -42,8 +42,10 @@ class GoalController(Node):
         goal_msg = MoveGroup.Goal()
         req = MotionPlanRequest()
         req.group_name = 'ur_manipulator'
-        req.allowed_planning_time = 10.0
-        req.num_planning_attempts = 5
+        req.allowed_planning_time = 15.0
+        req.num_planning_attempts = 10
+        req.max_velocity_scaling_factor = 0.3
+        req.max_acceleration_scaling_factor = 0.2
 
         start_state = RobotState()
         start_state.is_diff = True
@@ -69,9 +71,9 @@ class GoalController(Node):
         ori_con.header.frame_id = 'world'
         ori_con.link_name = 'tool0'
         ori_con.orientation = pose_stamped.pose.orientation
-        ori_con.absolute_x_axis_tolerance = 0.3
-        ori_con.absolute_y_axis_tolerance = 0.3
-        ori_con.absolute_z_axis_tolerance = 0.3
+        ori_con.absolute_x_axis_tolerance = 0.5
+        ori_con.absolute_y_axis_tolerance = 0.5
+        ori_con.absolute_z_axis_tolerance = 0.5
         ori_con.weight = 1.0
 
         constraint.position_constraints.append(pos_con)
