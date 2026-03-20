@@ -23,6 +23,7 @@ from lerobot.robots.utils import ensure_safe_goal_position
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from .config import ActionType, ROS2Config
+from .ros_topic_camera import ROSTopicCamera, ROSTopicCameraConfig, is_ros_topic_camera, parse_ros_topic
 from .ros_interface import ROS2Interface
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,29 @@ class ROS2Robot(Robot):
         super().__init__(config)
         self.config = config
         self.ros2_interface = ROS2Interface(config.ros2_interface, config.action_type)
-        self.cameras = make_cameras_from_configs(config.cameras)
+        self.cameras = self._make_cameras(config.cameras)
+
+    @staticmethod
+    def _make_cameras(camera_configs: dict[str, Any]) -> dict[str, Any]:
+        ros_cameras: dict[str, Any] = {}
+        non_ros_configs: dict[str, Any] = {}
+        for cam_name, cam_cfg in camera_configs.items():
+            if is_ros_topic_camera(cam_cfg):
+                topic = parse_ros_topic(str(cam_cfg.index_or_path))
+                ros_cameras[cam_name] = ROSTopicCamera(
+                    ROSTopicCameraConfig(topic=topic, width=cam_cfg.width, height=cam_cfg.height)
+                )
+            else:
+                non_ros_configs[cam_name] = cam_cfg
+
+        merged: dict[str, Any] = {}
+        non_ros_cameras = make_cameras_from_configs(non_ros_configs) if non_ros_configs else {}
+        for cam_name in camera_configs:
+            if cam_name in ros_cameras:
+                merged[cam_name] = ros_cameras[cam_name]
+            else:
+                merged[cam_name] = non_ros_cameras[cam_name]
+        return merged
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:

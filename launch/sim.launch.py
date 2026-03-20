@@ -106,6 +106,28 @@ def generate_launch_description():
         output='screen'
     )
 
+    # ROS topic -> raw BGR -> ffmpeg -> v4l2loopback (15 fps to reduce CPU load)
+    _ffmpeg_pipe = (
+        'ros2 run robot_control ros_image_to_raw --topic {topic} --width 640 --height 480 2>/dev/null | '
+        'ffmpeg -y -loglevel error -f rawvideo -pix_fmt bgr24 -s 640x480 -r 30 '
+        '-i pipe:0 -f v4l2 -pix_fmt rgb24 -r 15 {device}'
+    )
+    sim_cam_top_to_v4l2 = ExecuteProcess(
+        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/top/image_raw', device='/dev/video10')],
+        output='log',
+        shell=False,
+    )
+    sim_cam_side_to_v4l2 = ExecuteProcess(
+        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/side/image_raw', device='/dev/video11')],
+        output='log',
+        shell=False,
+    )
+    sim_cam_front_to_v4l2 = ExecuteProcess(
+        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/front/image_raw', device='/dev/video12')],
+        output='log',
+        shell=False,
+    )
+
     environment_setup_node = Node(
         package='robot_control',
         executable='environment_setup',
@@ -127,6 +149,11 @@ def generate_launch_description():
     cameras = TimerAction(
         period=15.0,
         actions=[camera_bridge]
+    )
+
+    virtual_cameras = TimerAction(
+        period=16.0,
+        actions=[sim_cam_top_to_v4l2, sim_cam_side_to_v4l2, sim_cam_front_to_v4l2]
     )
 
     home_pose_cmd = (
@@ -182,6 +209,7 @@ def generate_launch_description():
         moveit,
         environment_setup,
         cameras,
+        virtual_cameras,
         home_pose,
         step3_deactivate,
         step3_spawn,

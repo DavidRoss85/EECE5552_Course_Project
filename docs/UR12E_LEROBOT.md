@@ -98,14 +98,6 @@ source /opt/ros/jazzy/setup.bash
 lerobot-teleoperate --robot.type=ur12e_ros --teleop.type=ros_twist
 ```
 
-With cameras (for recording):
-
-```bash
-lerobot-teleoperate --robot.type=ur12e_ros --teleop.type=ros_twist \
-  --robot.cameras.top.fps=30 \
-  --robot.cameras.top.index_or_path=0
-```
-
 ---
 
 ## Joystick Mapping
@@ -116,8 +108,9 @@ lerobot-teleoperate --robot.type=ur12e_ros --teleop.type=ros_twist \
 | Left stick X| Left / right        |
 | Left stick Y| Forward / back      |
 | Right stick Y | Up / down        |
-| Right stick X | Rotate (yaw)      |
 | **B button**| **Return to home pose** |
+
+For imitation learning data collection, do not use the B button during demonstrations. It should only be used to reset the setup between episodes, because it triggers a separate ROS home action outside LeRobot's teleoperation action stream.
 
 ---
 
@@ -129,12 +122,80 @@ Use `lerobot-record` instead of `lerobot-teleoperate` when recording episodes:
 lerobot-record \
   --robot.type=ur12e_ros \
   --teleop.type=ros_twist \
-  --repo-id=your-username/your-dataset
+  --dataset.repo_id=frazier-z/ur12e \
+  --dataset.root=$HOME/GitHub/EECE5552_Course_Project/datasets/ur12e_sim_dataset \
+  --dataset.push_to_hub=false \
+  --dataset.num_episodes=5 \
+  --dataset.episode_time_s=45 \
+  --dataset.reset_time_s=20 \
+  --dataset.single_task="pick up imaginary block" \
+  --robot.cameras="{ top: {type: opencv, index_or_path: 'ros:///cameras/top/image_raw', width: 640, height: 480, fps: 30 }, side: {type: opencv, index_or_path: 'ros:///cameras/side/image_raw', width: 640, height: 480, fps: 30 }, front: {type: opencv, index_or_path: 'ros:///cameras/front/image_raw', width: 640, height: 480, fps: 30 } }" \
+  --resume false
 ```
+
+The canonical runnable example lives at `scripts/ur12e/record.sh`. Keep that script as the source of truth for this project and update this doc when the script changes.
 
 Configure cameras via `--robot.cameras.*` as needed. See [LeRobot docs](https://huggingface.co/docs/lerobot) for dataset format and training.
 
 **Note:** B-button home is *not* recorded as an action. It triggers a separate trajectory; LeRobot records zero (or last) velocities during the home move. Trim or exclude those segments if they affect training.
+
+**Camera mode recommendation:** For this project, prefer ROS-topic camera URIs (`ros:///...`) with `ur12e_ros`. The legacy OpenCV `/dev/video*` path and v4l2/ffmpeg bridge path were unstable and could hang or drop frames.
+
+---
+
+## lerobot-ros Integration for UR12e
+
+This project uses the local `lerobot-ros` plugin packages (`lerobot_robot_ros` and `lerobot_teleoperator_devices`) rather than only stock LeRobot behavior.
+
+### Why this was needed
+
+- The `lerobot-ros` code used in this repo targets an older LeRobot integration model.
+- Newer LeRobot versions include native ROS-topic camera support, but this project's plugin stack did not expose that behavior out of the box.
+- To keep `ur12e_ros` working in this repo without migrating the full stack, we added ROS-topic camera support directly in the local plugin.
+
+### How UR12e is configured
+
+- `lerobot-ros/lerobot_robot_ros/lerobot_robot_ros/config.py`
+  - Registers `ur12e_ros` via `@RobotConfig.register_subclass("ur12e_ros")`
+  - Defines UR12e-specific joint names, base link (`tool0`), and velocity limits
+- `lerobot-ros/lerobot_robot_ros/lerobot_robot_ros/robot.py`
+  - `UR12eROS` inherits from `ROS2Robot`
+  - `ROS2Robot` handles robot IO and camera construction
+- `lerobot-ros/lerobot_teleoperator_devices/.../config_ros_twist.py`
+  - Registers `ros_twist` teleoperator for joystick Twist input
+
+When you run `--robot.type=ur12e_ros --teleop.type=ros_twist`, LeRobot instantiates these plugin classes from `lerobot-ros`.
+
+### How ROS-topic camera input was added
+
+Two core changes were made in `lerobot_robot_ros`:
+
+1. Added `lerobot-ros/lerobot_robot_ros/lerobot_robot_ros/ros_topic_camera.py`
+   - Implements `ROSTopicCamera`
+   - Subscribes to `sensor_msgs/Image` topic
+   - Converts incoming image data to BGR `np.ndarray`
+   - Stores latest frame thread-safely
+   - Exposes `connect()`, `async_read(timeout_ms=...)`, and `disconnect()` so it behaves like a LeRobot camera source
+
+2. Updated `lerobot-ros/lerobot_robot_ros/lerobot_robot_ros/robot.py`
+   - Added `ROS2Robot._make_cameras()` to intercept camera configs
+   - If `index_or_path` is a ROS URI (`ros:///...` or normalized `ros:/...`), create `ROSTopicCamera`
+   - Otherwise fall back to standard LeRobot camera creation (`make_cameras_from_configs`)
+
+### How this integrates at runtime
+
+1. `lerobot-record` parses `--robot.cameras`
+2. For `ur12e_ros`, `ROS2Robot._make_cameras()` runs
+3. ROS URI cameras are routed to `ROSTopicCamera`
+4. Record loop calls `cam.async_read(...)` and receives frames from ROS topics directly
+
+This bypasses `/dev/video*`, v4l2loopback, and ffmpeg for ROS-topic cameras.
+
+### Camera URI format notes
+
+- Recommended in config: `ros:///cameras/top/image_raw`
+- Parser may normalize and display: `ros:/cameras/top/image_raw`
+- Custom parser logic in `ros_topic_camera.py` accepts both forms, plus path-like values (`PosixPath`)
 
 ---
 
@@ -164,6 +225,13 @@ Configure cameras via `--robot.cameras.*` as needed. See [LeRobot docs](https://
 **Wrong axis directions**
 
 - ros_twist maps teleop_twist_joy linear.x/y for tool0 frame; mapping is fixed in code
+
+**Cameras hang or timeout**
+
+- Avoid `lerobot-find-cameras opencv` for this setup; it may hang during device probing.
+- Prefer ROS-topic cameras in `--robot.cameras` (example in `scripts/ur12e/record.sh`).
+- If logs show `ros:/...` instead of `ros:///...`, that parser normalization is expected.
+- If using the old v4l2 route, expect higher CPU/latency and possible frame timeouts.
 
 ---
 
