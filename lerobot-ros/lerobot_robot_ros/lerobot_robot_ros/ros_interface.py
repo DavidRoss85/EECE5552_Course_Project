@@ -25,7 +25,7 @@ from rclpy.executors import Executor, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64, Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from .config import ActionType, GripperActionType, ROS2InterfaceConfig
@@ -60,11 +60,14 @@ class ROS2Interface:
         self.traj_cmd_pub: Publisher | None = None
         self.gripper_action_client: ActionClient | None = None
         self.gripper_traj_pub: Publisher | None = None
+        self.gripper_topic_pub: Publisher | None = None
         self.executor: Executor | None = None
         self.moveit2_servo: MoveIt2Servo | None = None
         self.executor_thread: threading.Thread | None = None
         self.is_connected = False
         self._last_joint_state: dict[str, dict[str, float]] | None = None
+        self._last_gripper_position: float | None = None
+        self._last_published_gripper: float | None = None  # dedup for TOPIC mode
 
     def connect(self) -> None:
         if not rclpy.ok():
@@ -89,6 +92,10 @@ class ROS2Interface:
         if self.config.gripper_action_type == GripperActionType.TRAJECTORY:
             self.gripper_traj_pub = self.robot_node.create_publisher(
                 JointTrajectory, "/gripper_controller/joint_trajectory", 10
+            )
+        elif self.config.gripper_action_type == GripperActionType.TOPIC:
+            self.gripper_topic_pub = self.robot_node.create_publisher(
+                Float64, self.config.gripper_topic_name, 10
             )
         else:
             self.gripper_action_client = ActionClient(
@@ -174,7 +181,7 @@ class ROS2Interface:
         """
         Send a command to the gripper to move to a specific position.
         Args:
-            position (float): The target position for the gripper (0=open, 1=closed).
+            position (float): The target position for the gripper (0=closed, 1=open).
         Returns:
             bool: True if the command was sent successfully, False otherwise.
         """
@@ -182,7 +189,7 @@ class ROS2Interface:
             raise DeviceNotConnectedError("ROS2Interface is not connected. You need to call `connect()`.")
 
         if unnormalize:
-            # Map normalized position (0=open, 1=closed) to actual gripper joint position
+            # Map normalized position (0=closed, 1=open) to actual gripper joint position
             open_pos = self.config.gripper_open_position
             closed_pos = self.config.gripper_close_position
             gripper_goal = open_pos + position * (closed_pos - open_pos)
@@ -198,6 +205,18 @@ class ROS2Interface:
             point.positions = [float(gripper_goal)]
             msg.points = [point]
             self.gripper_traj_pub.publish(msg)
+            return True
+        elif self.config.gripper_action_type == GripperActionType.TOPIC:
+            if self.gripper_topic_pub is None:
+                raise DeviceNotConnectedError("Gripper topic publisher is not initialized.")
+            value = float(position)
+            if value == self._last_published_gripper:
+                return True  # no state change, don't publish
+            msg = Float64()
+            msg.data = value
+            self.gripper_topic_pub.publish(msg)
+            self._last_published_gripper = value
+            self._last_gripper_position = value
             return True
         else:
             if not self.gripper_action_client:
@@ -237,7 +256,12 @@ class ROS2Interface:
             positions[joint_name] = msg.position[idx]
             velocities[joint_name] = msg.velocity[idx]
 
-        if self.config.gripper_joint_name:
+        if self.config.gripper_action_type == GripperActionType.TOPIC:
+            # Gripper is driven via URScript topic — no joint state entry exists.
+            # Use the last commanded position (normalized 0=closed, 1=open) as the observation.
+            positions["gripper"] = self._last_gripper_position if self._last_gripper_position is not None else 0.0
+            velocities["gripper"] = 0.0
+        elif self.config.gripper_joint_name:
             idx = name_to_index.get(self.config.gripper_joint_name)
             if idx is None:
                 raise ValueError(
@@ -265,6 +289,9 @@ class ROS2Interface:
         if self.gripper_traj_pub:
             self.gripper_traj_pub.destroy()
             self.gripper_traj_pub = None
+        if self.gripper_topic_pub:
+            self.gripper_topic_pub.destroy()
+            self.gripper_topic_pub = None
         if self.robot_node:
             self.robot_node.destroy_node()
             self.robot_node = None

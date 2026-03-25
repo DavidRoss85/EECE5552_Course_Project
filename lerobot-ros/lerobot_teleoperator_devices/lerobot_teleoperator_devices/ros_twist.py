@@ -13,6 +13,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
+from sensor_msgs.msg import Joy
 
 from lerobot.teleoperators import Teleoperator
 
@@ -38,6 +39,8 @@ class RosTwistTeleop(Teleoperator):
         self._executor: SingleThreadedExecutor | None = None
         self._thread: threading.Thread | None = None
         self._last_twist: Twist | None = None
+        self._gripper_pos: float = 1.0  # 0.0=closed, 1.0=open; start open
+        self._a_prev: bool = False       # previous A button state for edge detection
         self._lock = threading.Lock()
 
     @property
@@ -83,6 +86,13 @@ class RosTwistTeleop(Teleoperator):
             self._twist_cb,
             10,
         )
+        if self.config.use_gripper:
+            self._node.create_subscription(
+                Joy,
+                self.config.joy_topic,
+                self._joy_cb,
+                10,
+            )
         self._executor = SingleThreadedExecutor()
         self._executor.add_node(self._node)
         self._thread = threading.Thread(target=self._executor.spin, daemon=True)
@@ -93,11 +103,23 @@ class RosTwistTeleop(Teleoperator):
         with self._lock:
             self._last_twist = msg
 
+    def _joy_cb(self, msg: Joy) -> None:
+        btn = self.config.gripper_button
+        if btn >= len(msg.buttons):
+            return
+        a_pressed = bool(msg.buttons[btn])
+        # Toggle on rising edge (press, not hold)
+        with self._lock:
+            if a_pressed and not self._a_prev:
+                self._gripper_pos = 0.0 if self._gripper_pos >= 0.5 else 1.0
+            self._a_prev = a_pressed
+
     def get_action(self) -> dict[str, Any]:
         if self._node is None:
             raise RuntimeError("ROS Twist teleop not connected. Call connect() first.")
         with self._lock:
             t = self._last_twist
+            gripper = self._gripper_pos
         if t is None:
             return self._zero_action()
         action_dict: dict[str, Any] = {
@@ -109,7 +131,7 @@ class RosTwistTeleop(Teleoperator):
             "angular_z.vel": float(t.angular.z),
         }
         if self.config.use_gripper:
-            action_dict["gripper.pos"] = 0.0
+            action_dict["gripper.pos"] = gripper
         return action_dict
 
     def _zero_action(self) -> dict[str, Any]:
@@ -122,7 +144,8 @@ class RosTwistTeleop(Teleoperator):
             "angular_z.vel": 0.0,
         }
         if self.config.use_gripper:
-            out["gripper.pos"] = 0.0
+            with self._lock:
+                out["gripper.pos"] = self._gripper_pos
         return out
 
     def disconnect(self) -> None:

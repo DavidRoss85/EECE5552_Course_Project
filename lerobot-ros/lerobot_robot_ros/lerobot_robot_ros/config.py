@@ -27,6 +27,7 @@ class ActionType(Enum):
 class GripperActionType(Enum):
     TRAJECTORY = "trajectory"  # Use JointTrajectoryController for gripper
     ACTION = "action"  # Use GripperActionClient
+    TOPIC = "topic"  # Publish a gripper position topic
 
 
 @dataclass
@@ -45,6 +46,7 @@ class ROS2InterfaceConfig:
         ]
     )
     gripper_joint_name: str = "gripper_joint"
+    gripper_topic_name: str = "/gripper_position"
 
     # Base link name for computing end effector pose / velocity
     # Only applicable for cartesian control
@@ -93,7 +95,7 @@ class AnninAR4Config(ROS2Config):
     ros2_interface: ROS2InterfaceConfig = field(
         default_factory=lambda: ROS2InterfaceConfig(
             gripper_joint_name="gripper_jaw1_joint",
-            base_link="base_link",
+            base_link="tool0",
             min_joint_positions=[-2.9671, -0.7330, -1.5533, -2.8798, -1.8326, -2.7053],
             max_joint_positions=[2.9671, 1.5708, 0.9076, 2.8798, 1.8326, 2.7053],
             gripper_open_position=0.014,
@@ -122,7 +124,8 @@ class UR12eROSConfig(ROS2Config):
                 "wrist_2_joint",
                 "wrist_3_joint",
             ],
-            gripper_joint_name="",
+            gripper_action_type=GripperActionType.TOPIC,
+            gripper_topic_name="/gripper_position",
             base_link="tool0",
             max_linear_velocity=1.0,
             max_angular_velocity=1.0,

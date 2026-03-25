@@ -10,3 +10,5 @@ from lerobot.teleoperators.config import TeleoperatorConfig
 class RosTwistTeleopConfig(TeleoperatorConfig):
     use_gripper: bool = True
     twist_topic: str = "/game_controller"
+    joy_topic: str = "/joy"
+    gripper_button: int = 2  # X button on Xbox controller

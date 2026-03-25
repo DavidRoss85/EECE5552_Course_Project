@@ -22,7 +22,7 @@ from lerobot.robots import Robot
 from lerobot.robots.utils import ensure_safe_goal_position
 from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
-from .config import ActionType, ROS2Config
+from .config import ActionType, ROS2Config, GripperActionType
 from .ros_topic_camera import ROSTopicCamera, ROSTopicCameraConfig, is_ros_topic_camera, parse_ros_topic
 from .ros_interface import ROS2Interface
 
@@ -70,7 +70,9 @@ class ROS2Robot(Robot):
     @cached_property
     def observation_features(self) -> dict[str, type | tuple]:
         all_joint_names = self.config.ros2_interface.arm_joint_names.copy()
-        if self.config.ros2_interface.gripper_joint_name:
+        if self.config.ros2_interface.gripper_action_type == GripperActionType.TOPIC:
+            all_joint_names.append("gripper")
+        elif self.config.ros2_interface.gripper_joint_name:
             all_joint_names.append(self.config.ros2_interface.gripper_joint_name)
         motor_state_ft = {f"{motor}.pos": float for motor in all_joint_names}
         return {**motor_state_ft, **self._cameras_ft}

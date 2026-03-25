@@ -1,8 +1,12 @@
-"""Node that sends the arm to home pose when B button is pressed on the joystick."""
+"""Node that sends the arm to home pose when B button is pressed on the joystick.
+
+A button re-enables MoveIt Servo (activates forward_position_controller and unpauses servo_node).
+"""
 
 from sensor_msgs.msg import Joy
 from control_msgs.action import FollowJointTrajectory
 from controller_manager_msgs.srv import SwitchController
+from std_srvs.srv import SetBool
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 
@@ -19,6 +23,7 @@ JOINT_NAMES = [
     "wrist_2_joint",
     "wrist_3_joint",
 ]
+A_BUTTON_IDX = 0
 B_BUTTON_IDX = 1
 
 
@@ -37,16 +42,54 @@ class HomeButtonNode(Node):
             SwitchController,
             "/controller_manager/switch_controller",
         )
+        self.servo_pause_cli = self.create_client(
+            SetBool,
+            "/servo_node/pause_servo",
+        )
+        self._a_prev = False
         self._b_prev = False
         self._home_in_progress = False
 
     def _joy_cb(self, msg):
-        if len(msg.buttons) <= B_BUTTON_IDX or self._home_in_progress:
+        if self._home_in_progress:
             return
-        b_pressed = msg.buttons[B_BUTTON_IDX] == 1
-        if b_pressed and not self._b_prev:
-            self._send_home()
-        self._b_prev = b_pressed
+
+        if len(msg.buttons) > A_BUTTON_IDX:
+            a_pressed = bool(msg.buttons[A_BUTTON_IDX])
+            if a_pressed and not self._a_prev:
+                self._reset_servo()
+            self._a_prev = a_pressed
+
+        if len(msg.buttons) > B_BUTTON_IDX:
+            b_pressed = bool(msg.buttons[B_BUTTON_IDX])
+            if b_pressed and not self._b_prev:
+                self._send_home()
+            self._b_prev = b_pressed
+
+    def _reset_servo(self):
+        """Activate forward_position_controller and unpause servo_node."""
+        self.get_logger().info("A pressed: re-enabling MoveIt Servo...")
+        if not self.switch_cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn("Controller manager not available")
+            return
+        req = SwitchController.Request()
+        req.activate_controllers = ["forward_position_controller"]
+        req.deactivate_controllers = []
+        req.strictness = 1  # BEST_EFFORT
+        self.switch_cli.call_async(req).add_done_callback(self._on_servo_controller_ready)
+
+    def _on_servo_controller_ready(self, future):
+        try:
+            future.result()
+        except Exception as e:
+            self.get_logger().error(f"Controller switch failed: {e}")
+        if not self.servo_pause_cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn("Servo pause service not available")
+            return
+        unpause = SetBool.Request(data=False)  # False = unpaused / running
+        self.servo_pause_cli.call_async(unpause).add_done_callback(
+            lambda f: self.get_logger().info("MoveIt Servo re-enabled.")
+        )
 
     def _send_home(self):
         if not self.switch_cli.wait_for_service(timeout_sec=1.0):

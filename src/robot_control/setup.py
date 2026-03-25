@@ -29,6 +29,7 @@ setup(
                 'teleop_controller = robot_control.teleop_controller:main',
                 'home_button_node = robot_control.home_button_node:main',
                 'ros_image_to_raw = robot_control.ros_image_to_raw:main',
+                'gripper_urscript_node = robot_control.gripper_urscript_node:main',
             ],
         },
 )
