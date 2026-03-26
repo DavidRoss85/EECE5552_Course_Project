@@ -80,13 +80,49 @@ def generate_launch_description():
             '/cameras/top/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/side/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/front/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/cameras/top/depth@sensor_msgs/msg/Image[gz.msgs.Image',
         ],
         output='screen'
     )
 
+    topic_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='top_camera_relay',
+        arguments=['/cameras/top/image_raw', '/input/camera_feed/rgb/full_view'],
+        output='screen'
+    )
+
+    camera_top_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='camera_top_tf',
+        arguments=['--x', '0.3', '--y', '0', '--z', '2.2',
+                   '--roll', '3.14159', '--pitch', '0', '--yaw', '0',
+                   '--frame-id', 'world',
+                   '--child-frame-id', 'camera_top_optical_frame'],
+        output='screen'
+    )
+
+    goal_controller_node = Node(
+        package='robot_control',
+        executable='goal_controller',
+        name='goal_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
+    environment_setup_node = Node(
+        package='robot_control',
+        executable='environment_setup',
+        name='environment_setup',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
+    )
+
     moveit = TimerAction(
         period=10.0,
-        actions=[move_group_node, rviz_node]
+        actions=[move_group_node, rviz_node, goal_controller_node, environment_setup_node]
     )
 
     cameras = TimerAction(
@@ -98,4 +134,6 @@ def generate_launch_description():
         gazebo_and_controllers,
         moveit,
         cameras,
+        topic_relay,
+        camera_top_tf,
     ])

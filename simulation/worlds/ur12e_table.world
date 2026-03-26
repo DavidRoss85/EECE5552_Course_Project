@@ -104,10 +104,11 @@
       </link>
     </model>
 
-    <!-- TOP camera — partial robot, full table, straight down -->
+
+    <!-- TOP camera — shifted toward table front so arm is at frame edge -->
     <model name="camera_top">
       <static>true</static>
-      <pose>-0.3 0 3.5 0 1.5707963 0</pose>
+      <pose>0.3 0 2.2 0 1.5707963 0</pose>
       <link name="link">
         <visual name="visual">
           <geometry><box><size>0.05 0.05 0.05</size></box></geometry>
@@ -122,6 +123,16 @@
             <clip><near>0.1</near><far>10.0</far></clip>
           </camera>
           <topic>/cameras/top/image_raw</topic>
+        </sensor>
+        <sensor name="camera_top_depth_sensor" type="depth_camera">
+          <always_on>true</always_on>
+          <update_rate>30</update_rate>
+          <camera>
+            <horizontal_fov>1.047</horizontal_fov>
+            <image><width>1280</width><height>720</height><format>R_FLOAT32</format></image>
+            <clip><near>0.1</near><far>10.0</far></clip>
+          </camera>
+          <topic>/cameras/top/depth</topic>
         </sensor>
       </link>
     </model>
@@ -172,6 +183,63 @@
           </camera>
           <topic>/cameras/front/image_raw</topic>
         </sensor>
+      </link>
+    </model>
+
+    <!-- Colored cubes for eye-gaze target selection -->
+    <!-- Table surface z=0.775m, cube half=0.025m, center z=0.800m -->
+
+    <model name="red_cube">
+      <static>true</static>
+      <pose>0.4 0.2 0.810 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="blue_cube">
+      <static>true</static>
+      <pose>0.4 0.0 0.810 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="yellow_cube">
+      <static>true</static>
+      <pose>0.4 -0.2 0.810 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.07 0.07 0.07</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
       </link>
     </model>
 

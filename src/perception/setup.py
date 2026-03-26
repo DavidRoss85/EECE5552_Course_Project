@@ -30,6 +30,8 @@ setup(
         'console_scripts': [
             'camera_streamer = perception.nodes.generic_camera_streamer:main',
             'camera_viewer = perception.nodes.generic_camera_viewer:main',
+            'detection_node = perception.detection_node:main',
+            'object_localizer_node = perception.object_localizer_node:main',
         ],
     },
 )
