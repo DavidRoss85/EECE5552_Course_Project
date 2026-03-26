@@ -24,6 +24,7 @@ ros2 launch launch/teleop.launch.py
 |-----|-------------|
 | [simulation/README.md](simulation/README.md) | Simulation setup, launch order, goal-based control |
 | [docs/UR12E_TELEOP.md](docs/UR12E_TELEOP.md) | Joystick teleop, B-button home, mapping |
+| [docs/UR12E_TELEOP_GRIPPER_SETUP.md](docs/UR12E_TELEOP_GRIPPER_SETUP.md) | Current teleop + gripper wiring and debug flow |
 | [docs/UR12E_LEROBOT.md](docs/UR12E_LEROBOT.md) | LeRobot recording (ros_twist, ur12e_ros) |
 | [docs/SO101_IMITATION_LEARNING.md](docs/SO101_IMITATION_LEARNING.md) | SO101 imitation learning POC |
 | [docs/UR12E_GAZEBO_SETUP.md](docs/UR12E_GAZEBO_SETUP.md) | UR simulator installation (apt) |
