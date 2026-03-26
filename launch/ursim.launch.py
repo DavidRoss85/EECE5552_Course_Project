@@ -23,7 +23,7 @@ def generate_launch_description():
 
     robot_ip_arg = DeclareLaunchArgument(
         'robot_ip',
-        default_value='192.168.0.51',
+        default_value='10.245.216.50',
         description='IP address of the URSim instance',
     )
     robot_ip = LaunchConfiguration('robot_ip')
@@ -120,8 +120,8 @@ def generate_launch_description():
 
     home_pose_cmd = (
         'trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, '
-        'wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [0.0, -1.5707, '
-        '1.5707, -1.5707, -1.5707, 0.0], time_from_start: {sec: 3, nanosec: 0}}]}'
+        'wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [3.14, -1.5707, '
+        '1.5707, -1.5707, -1.5707, 0.0], time_from_start: {sec: 6, nanosec: 0}}]}'
     )
     home_pose_action = ExecuteProcess(
         cmd=[
@@ -160,6 +160,21 @@ def generate_launch_description():
     )
     step4 = TimerAction(period=17.0, actions=[set_command_type])
 
+    gripper_moveit_bridge = Node(
+        package='robot_control',
+        executable='gripper_moveit_bridge',
+        name='gripper_moveit_bridge',
+        output='screen',
+        parameters=[
+            {'robot_ip': robot_ip},
+            {'gripper_port': 63352},
+            {'gripper_joint_name': 'tool0'},
+            {'activate_gripper_on_start': True},
+            {'recover_external_control': False},
+        ],
+    )
+    step5_gripper_bridge = TimerAction(period=18.0, actions=[gripper_moveit_bridge])
+
     return LaunchDescription([
         robot_ip_arg,
         ur_driver,
@@ -169,4 +184,5 @@ def generate_launch_description():
         step3_deactivate,
         step3_spawn,
         step4,
+        step5_gripper_bridge,
     ])

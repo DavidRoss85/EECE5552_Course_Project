@@ -13,18 +13,20 @@ robot_port : int
     URScript secondary interface port (default 30002).
 gripper_topic : str
     Input topic (default "/gripper_position").
-activate_on_start : bool
-    Send rq_activate_and_wait() on connect (default True).
+resend_on_connect : bool
+    Whether to call resend_robot_program after gripper startup (default True).
+resend_robot_program_service : str
+    Service used to re-enable External Control
+    (default "/io_and_status_controller/resend_robot_program").
 """
 
 import socket
-import time
 
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64
+from std_srvs.srv import Trigger
 
-_ACTIVATE_CMD = "rq_activate_and_wait()\n"
 _OPEN_CMD = "rq_open()\n"
 _CLOSE_CMD = "rq_close()\n"
 
@@ -34,10 +36,14 @@ class GripperURScriptNode(Node):
     def __init__(self):
         super().__init__('gripper_urscript_node')
 
-        self.declare_parameter('robot_ip', '192.168.0.51')
+        self.declare_parameter('robot_ip', '10.245.216.50')
         self.declare_parameter('robot_port', 30002)
         self.declare_parameter('gripper_topic', '/gripper_position')
-        self.declare_parameter('activate_on_start', True)
+        self.declare_parameter('resend_on_connect', True)
+        self.declare_parameter(
+            'resend_robot_program_service',
+            '/io_and_status_controller/resend_robot_program',
+        )
 
         self._sock: socket.socket | None = None
         self._is_open: bool | None = None   # last sent state; None = unknown
@@ -45,6 +51,12 @@ class GripperURScriptNode(Node):
         gripper_topic = self.get_parameter('gripper_topic').get_parameter_value().string_value
         self._sub = self.create_subscription(Float64, gripper_topic, self._gripper_cb, 10)
         self.get_logger().info(f"Subscribed to '{gripper_topic}'.")
+        resend_service = (
+            self.get_parameter('resend_robot_program_service')
+            .get_parameter_value()
+            .string_value
+        )
+        self._resend_client = self.create_client(Trigger, resend_service)
 
         # Connect after spinning starts so __init__ doesn't block
         self._connect_timer = self.create_timer(0.1, self._deferred_connect)
@@ -66,16 +78,39 @@ class GripperURScriptNode(Node):
             self._send(_OPEN_CMD)
             self.get_logger().info("Opened gripper on connection")
             self._log_on_robot("Gripper opened on connection")
+            if self.get_parameter('resend_on_connect').get_parameter_value().bool_value:
+                self._request_resend_robot_program()
         except Exception as e:
             self.get_logger().error(f"Could not connect to robot: {e}")
             self._sock = None
             return
 
-        if self.get_parameter('activate_on_start').get_parameter_value().bool_value:
-            self._send(_ACTIVATE_CMD)
-            self.get_logger().info("Sent rq_activate_and_wait() — gripper activating (~3s)")
-            # Non-blocking wait: schedule a no-op; actual activation happens on the robot
-            time.sleep(3.0)
+    def _request_resend_robot_program(self) -> None:
+        service_name = (
+            self.get_parameter('resend_robot_program_service')
+            .get_parameter_value()
+            .string_value
+        )
+        if not self._resend_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn(
+                f"Service '{service_name}' not available; could not resend robot program."
+            )
+            return
+        future = self._resend_client.call_async(Trigger.Request())
+        future.add_done_callback(self._on_resend_robot_program_done)
+        self.get_logger().info(f"Requested '{service_name}' to re-enable External Control.")
+
+    def _on_resend_robot_program_done(self, future) -> None:
+        try:
+            response = future.result()
+        except Exception as e:
+            self.get_logger().error(f"resend_robot_program call failed: {e}")
+            return
+
+        if response.success:
+            self.get_logger().info(f"resend_robot_program succeeded: {response.message}")
+        else:
+            self.get_logger().warn(f"resend_robot_program rejected: {response.message}")
 
     def _send(self, cmd: str) -> bool:
         if self._sock is None:

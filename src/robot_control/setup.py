@@ -30,6 +30,7 @@ setup(
                 'home_button_node = robot_control.home_button_node:main',
                 'ros_image_to_raw = robot_control.ros_image_to_raw:main',
                 'gripper_urscript_node = robot_control.gripper_urscript_node:main',
+                'gripper_moveit_bridge = robot_control.gripper_moveit_bridge:main',
             ],
         },
 )

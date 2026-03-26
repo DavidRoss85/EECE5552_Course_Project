@@ -1,12 +1,12 @@
-"""Node that sends the arm to home pose when B button is pressed on the joystick.
+"""Joystick helper for arm home and gripper toggle.
 
-A button re-enables MoveIt Servo (activates forward_position_controller and unpauses servo_node).
+A button toggles gripper open/close via MoveIt-compatible GripperCommand action.
+B button sends the arm to home pose.
 """
 
 from sensor_msgs.msg import Joy
-from control_msgs.action import FollowJointTrajectory
+from control_msgs.action import FollowJointTrajectory, GripperCommand
 from controller_manager_msgs.srv import SwitchController
-from std_srvs.srv import SetBool
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
 
@@ -14,7 +14,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
-HOME_JOINTS = [0.0, -1.5707, 1.5707, -1.5707, -1.5707, 0.0]
+HOME_JOINTS = [3.14, -1.5707, 1.5707, -1.5707, -1.5707, 0.0]
 JOINT_NAMES = [
     "shoulder_pan_joint",
     "shoulder_lift_joint",
@@ -38,17 +38,20 @@ class HomeButtonNode(Node):
             FollowJointTrajectory,
             "/scaled_joint_trajectory_controller/follow_joint_trajectory",
         )
+        self.gripper_client = ActionClient(
+            self,
+            GripperCommand,
+            "/gripper_controller/gripper_cmd",
+        )
         self.switch_cli = self.create_client(
             SwitchController,
             "/controller_manager/switch_controller",
         )
-        self.servo_pause_cli = self.create_client(
-            SetBool,
-            "/servo_node/pause_servo",
-        )
         self._a_prev = False
         self._b_prev = False
         self._home_in_progress = False
+        self._gripper_open = True
+        self._gripper_busy = False
 
     def _joy_cb(self, msg):
         if self._home_in_progress:
@@ -57,7 +60,7 @@ class HomeButtonNode(Node):
         if len(msg.buttons) > A_BUTTON_IDX:
             a_pressed = bool(msg.buttons[A_BUTTON_IDX])
             if a_pressed and not self._a_prev:
-                self._reset_servo()
+                self._toggle_gripper()
             self._a_prev = a_pressed
 
         if len(msg.buttons) > B_BUTTON_IDX:
@@ -66,30 +69,58 @@ class HomeButtonNode(Node):
                 self._send_home()
             self._b_prev = b_pressed
 
-    def _reset_servo(self):
-        """Activate forward_position_controller and unpause servo_node."""
-        self.get_logger().info("A pressed: re-enabling MoveIt Servo...")
-        if not self.switch_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().warn("Controller manager not available")
+    def _toggle_gripper(self):
+        if self._gripper_busy:
+            self.get_logger().warn("Gripper command already in progress")
             return
-        req = SwitchController.Request()
-        req.activate_controllers = ["forward_position_controller"]
-        req.deactivate_controllers = []
-        req.strictness = 1  # BEST_EFFORT
-        self.switch_cli.call_async(req).add_done_callback(self._on_servo_controller_ready)
 
-    def _on_servo_controller_ready(self, future):
-        try:
-            future.result()
-        except Exception as e:
-            self.get_logger().error(f"Controller switch failed: {e}")
-        if not self.servo_pause_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().warn("Servo pause service not available")
+        if not self.gripper_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().warn("Gripper action server not available")
             return
-        unpause = SetBool.Request(data=False)  # False = unpaused / running
-        self.servo_pause_cli.call_async(unpause).add_done_callback(
-            lambda f: self.get_logger().info("MoveIt Servo re-enabled.")
+
+        goal = GripperCommand.Goal()
+        goal.command.position = 0.0 if self._gripper_open else 1.0
+        goal.command.max_effort = 0.0
+        self._gripper_busy = True
+        self.get_logger().info(
+            "A pressed: toggling gripper to "
+            f"{'closed' if self._gripper_open else 'open'}"
         )
+        future = self.gripper_client.send_goal_async(goal)
+        future.add_done_callback(self._on_gripper_goal_sent)
+
+    def _on_gripper_goal_sent(self, future):
+        try:
+            goal_handle = future.result()
+        except Exception as e:
+            self.get_logger().error(f"Failed to send gripper goal: {e}")
+            self._gripper_busy = False
+            return
+
+        if not goal_handle.accepted:
+            self.get_logger().warn("Gripper goal rejected")
+            self._gripper_busy = False
+            return
+
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self._on_gripper_done)
+
+    def _on_gripper_done(self, future):
+        try:
+            result = future.result().result
+        except Exception as e:
+            self.get_logger().error(f"Gripper action failed: {e}")
+            self._gripper_busy = False
+            return
+
+        if result.reached_goal:
+            self._gripper_open = not self._gripper_open
+            self.get_logger().info(
+                f"Gripper is now {'open' if self._gripper_open else 'closed'}"
+            )
+        else:
+            self.get_logger().warn("Gripper did not reach goal")
+        self._gripper_busy = False
 
     def _send_home(self):
         if not self.switch_cli.wait_for_service(timeout_sec=1.0):
@@ -126,7 +157,7 @@ class HomeButtonNode(Node):
         traj.joint_names = JOINT_NAMES
         pt = JointTrajectoryPoint()
         pt.positions = HOME_JOINTS
-        pt.time_from_start = Duration(sec=3, nanosec=0)
+        pt.time_from_start = Duration(sec=6, nanosec=0)
         traj.points = [pt]
         goal = FollowJointTrajectory.Goal()
         goal.trajectory = traj

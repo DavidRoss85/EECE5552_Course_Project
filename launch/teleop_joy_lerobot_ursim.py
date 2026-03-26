@@ -1,4 +1,4 @@
-"""Launch joy_node + teleop_twist_joy + home_button_node.
+"""Launch joy_node + teleop_twist_joy + home/gripper buttons.
 
 Use this when running lerobot-teleoperate with --teleop.type=ros_twist.
 The ros_twist teleop subscribes to /game_controller; this launch publishes there.
@@ -45,11 +45,4 @@ def generate_launch_description():
         output="screen",
     )
 
-    gripper_urscript_node = Node(
-        package="robot_control",
-        executable="gripper_urscript_node",
-        name="gripper_urscript_node",
-        output="screen",
-    )
-
-    return LaunchDescription([joy_node, teleop_node, home_button_node, gripper_urscript_node])
+    return LaunchDescription([joy_node, teleop_node, home_button_node])
