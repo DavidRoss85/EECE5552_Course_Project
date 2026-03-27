@@ -22,10 +22,15 @@ setup(
             'pytest',
         ],
     },
-    entry_points={
-        'console_scripts': [
-            'environment_setup = robot_control.environment_setup:main',
-            'goal_controller = robot_control.goal_controller:main',
-        ],
-    },
+        entry_points={
+            'console_scripts': [
+                'environment_setup = robot_control.environment_setup:main',
+                'goal_controller = robot_control.goal_controller:main',
+                'teleop_controller = robot_control.teleop_controller:main',
+                'home_button_node = robot_control.home_button_node:main',
+                'ros_image_to_raw = robot_control.ros_image_to_raw:main',
+                'gripper_urscript_node = robot_control.gripper_urscript_node:main',
+                'gripper_moveit_bridge = robot_control.gripper_moveit_bridge:main',
+            ],
+        },
 )

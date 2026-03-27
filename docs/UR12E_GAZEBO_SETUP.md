@@ -2,6 +2,8 @@
 
 This guide documents how to install and launch the Universal Robots UR12e in Gazebo simulation using the official `ur_simulation_gz` package on **ROS 2 Jazzy**.
 
+**Project integration:** This project uses `ur_sim_control.launch.py` via [sim.launch.py](../launch/sim.launch.py) with a custom world and MoveIt Servo. See [simulation/README.md](../simulation/README.md) for the full workflow.
+
 **Sources:**
 
 - [Installation — Universal Robots ROS 2 Driver](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/doc/ur_simulation_gz/ur_simulation_gz/doc/installation.html)
