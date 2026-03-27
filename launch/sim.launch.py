@@ -102,48 +102,49 @@ def generate_launch_description():
             '/cameras/top/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/side/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
             '/cameras/front/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+            '/cameras/top/depth@sensor_msgs/msg/Image[gz.msgs.Image',
         ],
         output='screen'
     )
 
-    # ROS topic -> raw BGR -> ffmpeg -> v4l2loopback (15 fps to reduce CPU load)
-    _ffmpeg_pipe = (
-        'ros2 run robot_control ros_image_to_raw --topic {topic} --width 640 --height 480 2>/dev/null | '
-        'ffmpeg -y -loglevel error -f rawvideo -pix_fmt bgr24 -s 640x480 -r 30 '
-        '-i pipe:0 -f v4l2 -pix_fmt rgb24 -r 15 {device}'
+    topic_relay = Node(
+        package='topic_tools',
+        executable='relay',
+        name='top_camera_relay',
+        arguments=['/cameras/top/image_raw', '/input/camera_feed/rgb/full_view'],
+        output='screen'
     )
-    sim_cam_top_to_v4l2 = ExecuteProcess(
-        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/top/image_raw', device='/dev/video10')],
-        output='log',
-        shell=False,
+
+    camera_top_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='camera_top_tf',
+        arguments=['--x', '0.3', '--y', '0', '--z', '2.2',
+                   '--roll', '3.14159', '--pitch', '0', '--yaw', '0',
+                   '--frame-id', 'world',
+                   '--child-frame-id', 'camera_top_optical_frame'],
+        output='screen'
     )
-    sim_cam_side_to_v4l2 = ExecuteProcess(
-        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/side/image_raw', device='/dev/video11')],
-        output='log',
-        shell=False,
-    )
-    sim_cam_front_to_v4l2 = ExecuteProcess(
-        cmd=['bash', '-c', _ffmpeg_pipe.format(topic='/cameras/front/image_raw', device='/dev/video12')],
-        output='log',
-        shell=False,
+
+    goal_controller_node = Node(
+        package='robot_control',
+        executable='goal_controller',
+        name='goal_controller',
+        output='screen',
+        parameters=[{'use_sim_time': True}],
     )
 
     environment_setup_node = Node(
         package='robot_control',
         executable='environment_setup',
+        name='environment_setup',
         output='screen',
         parameters=[{'use_sim_time': True}],
     )
 
     moveit = TimerAction(
         period=10.0,
-        actions=[move_group_node, rviz_node, servo_node]
-    )
-
-    # After MoveGroup is up, publish table to planning scene
-    environment_setup = TimerAction(
-        period=12.0,
-        actions=[environment_setup_node],
+        actions=[move_group_node, rviz_node, goal_controller_node, environment_setup_node]
     )
 
     cameras = TimerAction(
@@ -209,9 +210,6 @@ def generate_launch_description():
         moveit,
         environment_setup,
         cameras,
-        virtual_cameras,
-        home_pose,
-        step3_deactivate,
-        step3_spawn,
-        step4,
+        topic_relay,
+        camera_top_tf,
     ])

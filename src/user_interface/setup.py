@@ -13,17 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='david-ross',
-    maintainer_email='ross.d2@northeastern.edu',
-    description='TODO: Package description',
+    maintainer='abdul rahman',
+    maintainer_email='mohammedabdulr.1@northeastern.edu',
+    description='Pygame gaze overlay and VLA coordinate publisher for VisionGrip',
     license='Apache-2.0',
-    extras_require={
-        'test': [
-            'pytest',
-        ],
-    },
+    extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
+            'gaze_overlay_node = user_interface.gaze_overlay_node:main',
         ],
     },
 )

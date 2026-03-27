@@ -2,10 +2,19 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>gaze_tracking</name>
-  <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="ross.d2@northeastern.edu">david-ross</maintainer>
+  <version>0.1.0</version>
+  <description>Eye gaze tracking pipeline for VisionGrip assistive robot</description>
+  <maintainer email="mohammedabdulr.1@northeastern.edu">abdul rahman</maintainer>
   <license>Apache-2.0</license>
+
+  <depend>rclpy</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>robot_interfaces</depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
