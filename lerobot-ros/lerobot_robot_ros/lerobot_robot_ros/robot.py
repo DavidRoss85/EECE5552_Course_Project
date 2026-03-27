@@ -35,6 +35,7 @@ class ROS2Robot(Robot):
 
     def __init__(self, config: ROS2Config):
         super().__init__(config)
+        config.apply_robot_specific_interface_defaults()
         self.config = config
         self.ros2_interface = ROS2Interface(config.ros2_interface, config.action_type)
         self.cameras = self._make_cameras(config.cameras)
@@ -75,7 +76,10 @@ class ROS2Robot(Robot):
         elif self.config.ros2_interface.gripper_joint_name:
             all_joint_names.append(self.config.ros2_interface.gripper_joint_name)
         motor_state_ft = {f"{motor}.pos": float for motor in all_joint_names}
-        return {**motor_state_ft, **self._cameras_ft}
+        gaze_ft = {}
+        if self.config.ros2_interface.enable_gaze_input:
+            gaze_ft = {"gaze_x": float, "gaze_y": float}
+        return {**motor_state_ft, **gaze_ft, **self._cameras_ft}
 
     @cached_property
     def action_features(self) -> dict[str, type]:
@@ -126,7 +130,16 @@ class ROS2Robot(Robot):
         joint_state = self.ros2_interface.joint_state
         if joint_state is None:
             raise ValueError("Joint state is not available yet.")
+        if "position" not in joint_state:
+            raise ValueError("Joint state is malformed: missing 'position' key.")
         obs_dict.update({f"{joint}.pos": pos for joint, pos in joint_state["position"].items()})
+        if self.config.ros2_interface.enable_gaze_input:
+            gaze_xy = self.ros2_interface.gaze_xy
+            if gaze_xy is None:
+                obs_dict["gaze_x"] = float(self.config.ros2_interface.gaze_default_x)
+                obs_dict["gaze_y"] = float(self.config.ros2_interface.gaze_default_y)
+            else:
+                obs_dict["gaze_x"], obs_dict["gaze_y"] = gaze_xy
 
         # Capture images from cameras
         for cam_key, cam in self.cameras.items():

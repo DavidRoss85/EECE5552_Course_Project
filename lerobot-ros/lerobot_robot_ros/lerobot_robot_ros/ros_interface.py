@@ -25,7 +25,7 @@ from rclpy.executors import Executor, SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float64, Float64MultiArray
+from std_msgs.msg import Float32MultiArray, Float64, Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 from .config import ActionType, GripperActionType, ROS2InterfaceConfig
@@ -68,6 +68,9 @@ class ROS2Interface:
         self._last_joint_state: dict[str, dict[str, float]] | None = None
         self._last_gripper_position: float | None = None
         self._last_published_gripper: float | None = None  # dedup for TOPIC mode
+        self._last_gaze_xy: tuple[float, float] | None = None
+        self.gaze_sub = None
+        self.joint_state_sub = None
 
     def connect(self) -> None:
         if not rclpy.ok():
@@ -112,6 +115,13 @@ class ROS2Interface:
             self._joint_state_callback,
             10,
         )
+        if self.config.enable_gaze_input:
+            self.gaze_sub = self.robot_node.create_subscription(
+                Float32MultiArray,
+                self.config.gaze_topic_name,
+                self._gaze_callback,
+                10,
+            )
 
         # Create and start the executor in a separate thread
         self.executor = SingleThreadedExecutor()
@@ -245,14 +255,17 @@ class ROS2Interface:
         return self._last_joint_state
 
     def _joint_state_callback(self, msg: "JointState") -> None:
-        self._last_joint_state = self._last_joint_state or {}
-        positions = {}
-        velocities = {}
+        positions: dict[str, float] = {}
+        velocities: dict[str, float] = {}
         name_to_index = {name: i for i, name in enumerate(msg.name)}
         for joint_name in self.config.arm_joint_names:
             idx = name_to_index.get(joint_name)
             if idx is None:
-                raise ValueError(f"Joint '{joint_name}' not found in joint state.")
+                logger.warning(
+                    f"Joint '{joint_name}' not found in joint state. "
+                    f"Received joints: {list(msg.name)}"
+                )
+                return
             positions[joint_name] = msg.position[idx]
             velocities[joint_name] = msg.velocity[idx]
 
@@ -264,19 +277,37 @@ class ROS2Interface:
         elif self.config.gripper_joint_name:
             idx = name_to_index.get(self.config.gripper_joint_name)
             if idx is None:
-                raise ValueError(
-                    f"Gripper joint '{self.config.gripper_joint_name}' not found in joint state."
+                logger.warning(
+                    f"Gripper joint '{self.config.gripper_joint_name}' not found in joint state. "
+                    f"Received joints: {list(msg.name)}"
                 )
-            positions[self.config.gripper_joint_name] = msg.position[idx]
-            velocities[self.config.gripper_joint_name] = msg.velocity[idx]
+            else:
+                positions[self.config.gripper_joint_name] = msg.position[idx]
+                velocities[self.config.gripper_joint_name] = msg.velocity[idx]
 
-        self._last_joint_state["position"] = positions
-        self._last_joint_state["velocity"] = velocities
+        self._last_joint_state = {"position": positions, "velocity": velocities}
+
+    @property
+    def gaze_xy(self) -> tuple[float, float] | None:
+        """Get the last received gaze [x, y] sample."""
+        return self._last_gaze_xy
+
+    def _gaze_callback(self, msg: "Float32MultiArray") -> None:
+        if len(msg.data) < 2:
+            logger.warning(
+                f"Received gaze message with {len(msg.data)} value(s) on "
+                f"{self.config.gaze_topic_name}; expected at least 2."
+            )
+            return
+        self._last_gaze_xy = (float(msg.data[0]), float(msg.data[1]))
 
     def disconnect(self):
         if self.joint_state_sub:
             self.joint_state_sub.destroy()
             self.joint_state_sub = None
+        if self.gaze_sub:
+            self.gaze_sub.destroy()
+            self.gaze_sub = None
         if self.pos_cmd_pub:
             self.pos_cmd_pub.destroy()
             self.pos_cmd_pub = None

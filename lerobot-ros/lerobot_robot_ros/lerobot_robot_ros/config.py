@@ -64,6 +64,28 @@ class ROS2InterfaceConfig:
     gripper_close_position: float = 1.0
 
     gripper_action_type: GripperActionType = GripperActionType.TRAJECTORY
+    enable_gaze_input: bool = False
+    gaze_topic_name: str = "/eye_gaze_xy"
+    gaze_default_x: float = 0.0
+    gaze_default_y: float = 0.0
+
+
+def _ur12e_ros2_interface_defaults() -> ROS2InterfaceConfig:
+    return ROS2InterfaceConfig(
+        arm_joint_names=[
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ],
+        gripper_action_type=GripperActionType.TOPIC,
+        gripper_topic_name="/gripper_position",
+        base_link="tool0",
+        max_linear_velocity=1.0,
+        max_angular_velocity=1.0,
+    )
 
 
 @dataclass
@@ -81,6 +103,9 @@ class ROS2Config(RobotConfig):
 
     # ROS2 interface configuration
     ros2_interface: ROS2InterfaceConfig = field(default_factory=ROS2InterfaceConfig)
+
+    def apply_robot_specific_interface_defaults(self) -> None:
+        pass
 
 
 @RobotConfig.register_subclass("annin_ar4_mk1")
@@ -115,22 +140,37 @@ class UR12eROSConfig(ROS2Config):
     action_type: ActionType = ActionType.CARTESIAN_VELOCITY
 
     ros2_interface: ROS2InterfaceConfig = field(
-        default_factory=lambda: ROS2InterfaceConfig(
-            arm_joint_names=[
-                "shoulder_pan_joint",
-                "shoulder_lift_joint",
-                "elbow_joint",
-                "wrist_1_joint",
-                "wrist_2_joint",
-                "wrist_3_joint",
-            ],
-            gripper_action_type=GripperActionType.TOPIC,
-            gripper_topic_name="/gripper_position",
-            base_link="tool0",
-            max_linear_velocity=1.0,
-            max_angular_velocity=1.0,
-        ),
+        default_factory=_ur12e_ros2_interface_defaults,
     )
+
+    def __post_init__(self):
+        parent_post_init = getattr(super(), "__post_init__", None)
+        if callable(parent_post_init):
+            parent_post_init()
+
+        self.apply_robot_specific_interface_defaults()
+
+    def apply_robot_specific_interface_defaults(self) -> None:
+
+        # Some CLI/config parsers overwrite nested dataclass fields with base defaults
+        # when only one subfield is overridden (e.g. enabling gaze input). Backfill
+        # UR12e-specific defaults for fields that still match the generic ROS2 defaults.
+        generic_defaults = ROS2InterfaceConfig()
+        ur12e_defaults = _ur12e_ros2_interface_defaults()
+        fields_to_backfill = (
+            "arm_joint_names",
+            "gripper_action_type",
+            "gripper_topic_name",
+            "base_link",
+            "max_linear_velocity",
+            "max_angular_velocity",
+        )
+        for field_name in fields_to_backfill:
+            current = getattr(self.ros2_interface, field_name)
+            generic = getattr(generic_defaults, field_name)
+            if current == generic:
+                ur12e = getattr(ur12e_defaults, field_name)
+                setattr(self.ros2_interface, field_name, ur12e.copy() if isinstance(ur12e, list) else ur12e)
 
 
 @RobotConfig.register_subclass("so101_ros")
