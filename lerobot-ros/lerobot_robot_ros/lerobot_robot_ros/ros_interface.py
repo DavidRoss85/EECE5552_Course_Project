@@ -299,6 +299,7 @@ class ROS2Interface:
                 f"{self.config.gaze_topic_name}; expected at least 2."
             )
             return
+        logger.info(f"Received gaze message: {msg.data[0]}, {msg.data[1]}")
         self._last_gaze_xy = (float(msg.data[0]), float(msg.data[1]))
 
     def disconnect(self):
