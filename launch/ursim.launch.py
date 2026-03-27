@@ -100,23 +100,11 @@ def generate_launch_description():
         ],
     )
 
-    # environment_setup_node = Node(
-    #     package='robot_control',
-    #     executable='environment_setup',
-    #     output='screen',
-    #     parameters=[{'use_sim_time': False}],
-    # )
-
     # Wait for the driver + controllers to be ready before starting MoveIt
     moveit = TimerAction(
         period=5.0,
         actions=[move_group_node, rviz_node, servo_node],
     )
-
-    # environment_setup = TimerAction(
-    #     period=8.0,
-    #     actions=[environment_setup_node],
-    # )
 
     home_pose_cmd = (
         'trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, '
@@ -179,7 +167,6 @@ def generate_launch_description():
         robot_ip_arg,
         ur_driver,
         moveit,
-        # environment_setup,
         home_pose,
         step3_deactivate,
         step3_spawn,
