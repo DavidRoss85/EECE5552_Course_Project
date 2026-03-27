@@ -119,6 +119,14 @@ ros2 launch launch/eyegaze.launch.py camera_source:=topic use_depth:=true
 ros2 launch launch/eyegaze.launch.py camera_source:=usb camera_device:=/dev/video0
 ```
 
+### Standalone VLA Detector (test/debug — no full stack needed)
+
+Runs HSV detection and publishes directly to `/vla/coords` and `/vla/target` with a live OpenCV preview window. Replace `/dev/video4` with your camera device.
+
+```bash
+ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4
+```
+
 ---
 
 ## Calibration (real eye-tracking mode)
