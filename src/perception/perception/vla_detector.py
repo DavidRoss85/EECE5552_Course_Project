@@ -71,7 +71,7 @@ class VlaDetector(Node):
                 cam_arg = int(device)
             except (ValueError, TypeError):
                 cam_arg = device
-            self._cap = cv2.VideoCapture(cam_arg)
+            self._cap = cv2.VideoCapture(cam_arg, cv2.CAP_V4L2)
             w = self.get_parameter('image_width').value
             h = self.get_parameter('image_height').value
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
