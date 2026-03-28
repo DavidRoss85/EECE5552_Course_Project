@@ -121,10 +121,19 @@ ros2 launch launch/eyegaze.launch.py camera_source:=usb camera_device:=/dev/vide
 
 ### Standalone VLA Detector (test/debug — no full stack needed)
 
-Runs HSV detection and publishes directly to `/vla/coords` and `/vla/target` with a live OpenCV preview window. Replace `/dev/video4` with your camera device.
+Runs HSV detection and publishes to `/vla/coords`, `/vla/target`, and `/vla/preview` (annotated image topic, always on). Replace `/dev/video4` with your camera device.
 
 ```bash
+# headless (default) — detects in background, preview available on /vla/preview
 ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4
+
+# with live OpenCV window
+ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4 -p display:=true
+```
+
+View the annotated feed without a window:
+```bash
+ros2 run rqt_image_view rqt_image_view /vla/preview
 ```
 
 Filter by color using the `colors` parameter (default: all three):

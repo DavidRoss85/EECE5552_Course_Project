@@ -1,13 +1,16 @@
 """
 Standalone detection node for testing.
 Opens a camera, runs HSV color detection, and publishes directly to:
-  /vla/coords  — Float32MultiArray [cx, cy] of the largest detected object
-  /vla/target  — String color name (red / blue / yellow)
+  /vla/coords   — Float32MultiArray [cx, cy] of the largest detected object
+  /vla/target   — String color name (red / blue / yellow)
+  /vla/preview  — sensor_msgs/Image annotated frame (always published)
 
 Run:
   ros2 run perception vla_detector
-  ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video0
+  ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4
+  ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4 -p display:=true
   ros2 run perception vla_detector --ros-args -p camera_source:=topic -p camera_topic:=/input/camera_feed/rgb/full_view
+  ros2 run perception vla_detector --ros-args -p colors:='["red"]'
 """
 
 import cv2
@@ -15,7 +18,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32MultiArray, Header, String
+from std_msgs.msg import Float32MultiArray, String
 from cv_bridge import CvBridge
 
 print(''.join(chr(x-7) for x in [104,105,107,124,115,39,121,104,111,116,104,117]))
@@ -29,6 +32,7 @@ HSV_RANGES = {
 
 MIN_AREA = 200
 _KERNEL = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+BGR = {'red': (0, 0, 255), 'blue': (255, 80, 0), 'yellow': (0, 220, 255)}
 
 
 class VlaDetector(Node):
@@ -40,13 +44,16 @@ class VlaDetector(Node):
         self.declare_parameter('camera_device', '/dev/video0')
         self.declare_parameter('image_width', 1280)
         self.declare_parameter('image_height', 720)
-        self.declare_parameter('colors', ['red', 'blue', 'yellow'])  # subset to detect
+        self.declare_parameter('colors', ['red', 'blue', 'yellow'])
+        self.declare_parameter('display', False)
 
         self._bridge = CvBridge()
         self._cap = None
+        self._display = self.get_parameter('display').value
 
         self._coords_pub = self.create_publisher(Float32MultiArray, '/vla/coords', 10)
         self._target_pub = self.create_publisher(String, '/vla/target', 10)
+        self._preview_pub = self.create_publisher(Image, '/vla/preview', 10)
 
         requested = self.get_parameter('colors').value
         self._active_colors = {c: v for c, v in HSV_RANGES.items() if c in requested}
@@ -54,6 +61,7 @@ class VlaDetector(Node):
             self.get_logger().warn(f'No valid colors in {requested}, falling back to all')
             self._active_colors = HSV_RANGES
         self.get_logger().info(f'Detecting: {list(self._active_colors.keys())}')
+        self.get_logger().info(f'Display: {"on" if self._display else "off"} | Preview topic: /vla/preview')
 
         source = self.get_parameter('camera_source').value
 
@@ -89,10 +97,8 @@ class VlaDetector(Node):
 
     def _detect(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        best = None   # (area, cx, cy, name, bbox)
-        all_dets = [] # (cx, cy, name, bbox) for display
-
-        BGR = {'red': (0, 0, 255), 'blue': (255, 80, 0), 'yellow': (0, 220, 255)}
+        best = None
+        all_dets = []
 
         for color_name, ranges in self._active_colors.items():
             mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
@@ -112,26 +118,28 @@ class VlaDetector(Node):
                 if best is None or area > best[0]:
                     best = (area, cx, cy, color_name, (x, y, w, h))
 
-        # draw all detections
-        display = frame.copy()
+        # always build annotated frame for preview topic
+        annotated = frame.copy()
         for area, cx, cy, name, (x, y, w, h) in all_dets:
             color = BGR.get(name, (255, 255, 255))
             is_best = best is not None and (cx, cy, name) == (best[1], best[2], best[3])
-            thickness = 3 if is_best else 1
-            cv2.rectangle(display, (x, y), (x + w, y + h), color, thickness)
-            cv2.circle(display, (cx, cy), 5, color, -1)
-            label_text = f'{name} ({cx},{cy})'
-            cv2.putText(display, label_text, (x, y - 8),
+            cv2.rectangle(annotated, (x, y), (x + w, y + h), color, 3 if is_best else 1)
+            cv2.circle(annotated, (cx, cy), 5, color, -1)
+            cv2.putText(annotated, f'{name} ({cx},{cy})', (x, y - 8),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
         if best is not None:
             _, cx, cy, name, _ = best
-            cv2.putText(display, f'TARGET: {name}', (10, 30),
+            cv2.putText(annotated, f'TARGET: {name}', (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.0, BGR.get(name, (255, 255, 255)), 2)
 
-        cv2.imshow('VLA Detector', display)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            raise SystemExit
+        # publish annotated frame regardless of display setting
+        self._preview_pub.publish(self._bridge.cv2_to_imgmsg(annotated, encoding='bgr8'))
+
+        if self._display:
+            cv2.imshow('VLA Detector', annotated)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                raise SystemExit
 
         if best is None:
             return
