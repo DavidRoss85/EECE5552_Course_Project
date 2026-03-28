@@ -14,7 +14,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
-HOME_JOINTS = [3.14, -1.5707, 1.5707, -1.5707, -1.5707, 0.0]
+HOME_JOINTS = [3.14, -1.5707, 1.5707, -1.5707, -1.5707, 1.5707]
 JOINT_NAMES = [
     "shoulder_pan_joint",
     "shoulder_lift_joint",
