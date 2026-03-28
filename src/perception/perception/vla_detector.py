@@ -40,12 +40,20 @@ class VlaDetector(Node):
         self.declare_parameter('camera_device', '/dev/video0')
         self.declare_parameter('image_width', 1280)
         self.declare_parameter('image_height', 720)
+        self.declare_parameter('colors', ['red', 'blue', 'yellow'])  # subset to detect
 
         self._bridge = CvBridge()
         self._cap = None
 
         self._coords_pub = self.create_publisher(Float32MultiArray, '/vla/coords', 10)
         self._target_pub = self.create_publisher(String, '/vla/target', 10)
+
+        requested = self.get_parameter('colors').value
+        self._active_colors = {c: v for c, v in HSV_RANGES.items() if c in requested}
+        if not self._active_colors:
+            self.get_logger().warn(f'No valid colors in {requested}, falling back to all')
+            self._active_colors = HSV_RANGES
+        self.get_logger().info(f'Detecting: {list(self._active_colors.keys())}')
 
         source = self.get_parameter('camera_source').value
 
@@ -86,7 +94,7 @@ class VlaDetector(Node):
 
         BGR = {'red': (0, 0, 255), 'blue': (255, 80, 0), 'yellow': (0, 220, 255)}
 
-        for color_name, ranges in HSV_RANGES.items():
+        for color_name, ranges in self._active_colors.items():
             mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
             for lo, hi in ranges:
                 mask |= cv2.inRange(hsv, np.array(lo), np.array(hi))

@@ -127,6 +127,16 @@ Runs HSV detection and publishes directly to `/vla/coords` and `/vla/target` wit
 ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4
 ```
 
+Filter by color using the `colors` parameter (default: all three):
+
+```bash
+# single color
+ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4 -p colors:='["red"]'
+
+# two colors
+ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4 -p colors:='["red","blue"]'
+```
+
 ---
 
 ## Calibration (real eye-tracking mode)
