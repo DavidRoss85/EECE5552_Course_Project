@@ -80,8 +80,7 @@ def _ur12e_ros2_interface_defaults() -> ROS2InterfaceConfig:
             "wrist_2_joint",
             "wrist_3_joint",
         ],
-        gripper_action_type=GripperActionType.TOPIC,
-        gripper_topic_name="/gripper_position",
+        gripper_action_type=GripperActionType.ACTION,
         base_link="tool0",
         max_linear_velocity=1.0,
         max_angular_velocity=1.0,
@@ -160,7 +159,6 @@ class UR12eROSConfig(ROS2Config):
         fields_to_backfill = (
             "arm_joint_names",
             "gripper_action_type",
-            "gripper_topic_name",
             "base_link",
             "max_linear_velocity",
             "max_angular_velocity",

@@ -242,6 +242,7 @@ class ROS2Interface:
                 return False
             result = resp.result  # type: ignore  # ROS2 types available at runtime
             if result.reached_goal:
+                self._last_gripper_position = float(position)
                 return True
             logger.error(
                 f"Gripper did not reach goal. stalled: {result.stalled}, "
@@ -269,21 +270,15 @@ class ROS2Interface:
             positions[joint_name] = msg.position[idx]
             velocities[joint_name] = msg.velocity[idx]
 
-        if self.config.gripper_action_type == GripperActionType.TOPIC:
-            # Gripper is driven via URScript topic — no joint state entry exists.
-            # Use the last commanded position (normalized 0=closed, 1=open) as the observation.
-            positions["gripper"] = self._last_gripper_position if self._last_gripper_position is not None else 0.0
-            velocities["gripper"] = 0.0
-        elif self.config.gripper_joint_name:
+        if self.config.gripper_joint_name:
             idx = name_to_index.get(self.config.gripper_joint_name)
-            if idx is None:
-                logger.warning(
-                    f"Gripper joint '{self.config.gripper_joint_name}' not found in joint state. "
-                    f"Received joints: {list(msg.name)}"
-                )
-            else:
+            if idx is not None:
                 positions[self.config.gripper_joint_name] = msg.position[idx]
                 velocities[self.config.gripper_joint_name] = msg.velocity[idx]
+            else:
+                gripper_key = self.config.gripper_joint_name
+                positions[gripper_key] = self._last_gripper_position if self._last_gripper_position is not None else 0.0
+                velocities[gripper_key] = 0.0
 
         self._last_joint_state = {"position": positions, "velocity": velocities}
 
@@ -300,6 +295,7 @@ class ROS2Interface:
             )
             return
         logger.info(f"Received gaze message: {msg.data[0]}, {msg.data[1]}")
+        print(f"Received gaze message: {msg.data[0]}, {msg.data[1]}")
         self._last_gaze_xy = (float(msg.data[0]), float(msg.data[1]))
 
     def disconnect(self):

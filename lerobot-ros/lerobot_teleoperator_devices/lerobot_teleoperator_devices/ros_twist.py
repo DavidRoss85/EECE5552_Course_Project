@@ -111,6 +111,7 @@ class RosTwistTeleop(Teleoperator):
         # Toggle on rising edge (press, not hold)
         with self._lock:
             if a_pressed and not self._a_prev:
+                print(f"Gripper button pressed: {a_pressed}")
                 self._gripper_pos = 0.0 if self._gripper_pos >= 0.5 else 1.0
             self._a_prev = a_pressed
 

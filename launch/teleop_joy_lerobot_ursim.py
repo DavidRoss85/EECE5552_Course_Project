@@ -28,8 +28,8 @@ def generate_launch_description():
         parameters=[
             {"require_enable_button": True},
             {"enable_button": 7},
-            {"axis_linear.x": 1},
-            {"axis_linear.y": 0},
+            {"axis_linear.x": 0},
+            {"axis_linear.y": 1},
             {"axis_linear.z": 3},
             {"scale_linear.z": -0.5},
             {"scale_linear.x": -0.5},

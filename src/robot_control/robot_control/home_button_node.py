@@ -1,11 +1,11 @@
-"""Joystick helper for arm home and gripper toggle.
+"""Joystick helper for arm home.
 
-A button toggles gripper open/close via MoveIt-compatible GripperCommand action.
-B button sends the arm to home pose.
+B button sends the arm to home pose. Gripper is controlled via the
+lerobot teleop pipeline (A button in ros_twist teleoperator).
 """
 
 from sensor_msgs.msg import Joy
-from control_msgs.action import FollowJointTrajectory, GripperCommand
+from control_msgs.action import FollowJointTrajectory
 from controller_manager_msgs.srv import SwitchController
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from builtin_interfaces.msg import Duration
@@ -23,7 +23,6 @@ JOINT_NAMES = [
     "wrist_2_joint",
     "wrist_3_joint",
 ]
-A_BUTTON_IDX = 0
 B_BUTTON_IDX = 1
 
 
@@ -38,89 +37,22 @@ class HomeButtonNode(Node):
             FollowJointTrajectory,
             "/scaled_joint_trajectory_controller/follow_joint_trajectory",
         )
-        self.gripper_client = ActionClient(
-            self,
-            GripperCommand,
-            "/gripper_controller/gripper_cmd",
-        )
         self.switch_cli = self.create_client(
             SwitchController,
             "/controller_manager/switch_controller",
         )
-        self._a_prev = False
         self._b_prev = False
         self._home_in_progress = False
-        self._gripper_open = True
-        self._gripper_busy = False
 
     def _joy_cb(self, msg):
         if self._home_in_progress:
             return
-
-        if len(msg.buttons) > A_BUTTON_IDX:
-            a_pressed = bool(msg.buttons[A_BUTTON_IDX])
-            if a_pressed and not self._a_prev:
-                self._toggle_gripper()
-            self._a_prev = a_pressed
 
         if len(msg.buttons) > B_BUTTON_IDX:
             b_pressed = bool(msg.buttons[B_BUTTON_IDX])
             if b_pressed and not self._b_prev:
                 self._send_home()
             self._b_prev = b_pressed
-
-    def _toggle_gripper(self):
-        if self._gripper_busy:
-            self.get_logger().warn("Gripper command already in progress")
-            return
-
-        if not self.gripper_client.wait_for_server(timeout_sec=1.0):
-            self.get_logger().warn("Gripper action server not available")
-            return
-
-        goal = GripperCommand.Goal()
-        goal.command.position = 0.0 if self._gripper_open else 1.0
-        goal.command.max_effort = 0.0
-        self._gripper_busy = True
-        self.get_logger().info(
-            "A pressed: toggling gripper to "
-            f"{'closed' if self._gripper_open else 'open'}"
-        )
-        future = self.gripper_client.send_goal_async(goal)
-        future.add_done_callback(self._on_gripper_goal_sent)
-
-    def _on_gripper_goal_sent(self, future):
-        try:
-            goal_handle = future.result()
-        except Exception as e:
-            self.get_logger().error(f"Failed to send gripper goal: {e}")
-            self._gripper_busy = False
-            return
-
-        if not goal_handle.accepted:
-            self.get_logger().warn("Gripper goal rejected")
-            self._gripper_busy = False
-            return
-
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self._on_gripper_done)
-
-    def _on_gripper_done(self, future):
-        try:
-            result = future.result().result
-        except Exception as e:
-            self.get_logger().error(f"Gripper action failed: {e}")
-            self._gripper_busy = False
-            return
-
-        if result.reached_goal:
-            self._gripper_open = not self._gripper_open
-            self.get_logger().info(
-                f"Gripper is now {'open' if self._gripper_open else 'closed'}"
-            )
-        else:
-            self.get_logger().warn("Gripper did not reach goal")
-        self._gripper_busy = False
 
     def _send_home(self):
         if not self.switch_cli.wait_for_service(timeout_sec=1.0):

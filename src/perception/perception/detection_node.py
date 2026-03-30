@@ -12,13 +12,14 @@ print(''.join(chr(x-7) for x in [104,105,107,124,115,39,121,104,111,116,104,117]
 # HSV ranges: each color is a list of (lower, upper) tuples
 # Red wraps around 180 so it needs two ranges
 HSV_RANGES = {
-    'red':    [((0,   100, 100), (10,  255, 255)),
-               ((170, 100, 100), (180, 255, 255))],
+    # Broad red bands to tolerate webcam color shift toward orange/magenta.
+    'red':    [((0,    50,  40), (25,  255, 255)),
+               ((155,  50,  40), (180, 255, 255))],
     'blue':   [((100, 100, 100), (130, 255, 255))],
     'yellow': [((20,  100, 100), (35,  255, 255))],
 }
 
-MIN_CONTOUR_AREA = 200  # px^2 — filters out noise blobs
+MIN_CONTOUR_AREA = 150  # px^2 — filters out noise blobs
 _MORPH_KERNEL = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
 
