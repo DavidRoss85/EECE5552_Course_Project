@@ -66,7 +66,7 @@ class ROS2Interface:
         self.executor_thread: threading.Thread | None = None
         self.is_connected = False
         self._last_joint_state: dict[str, dict[str, float]] | None = None
-        self._last_gripper_position: float | None = None
+        self._last_gripper_position: float = 1.0  # assume open, matching ros_twist default
         self._last_published_gripper: float | None = None  # dedup for TOPIC mode
         self._last_gaze_xy: tuple[float, float] | None = None
         self.gaze_sub = None
@@ -277,7 +277,7 @@ class ROS2Interface:
                 velocities[self.config.gripper_joint_name] = msg.velocity[idx]
             else:
                 gripper_key = self.config.gripper_joint_name
-                positions[gripper_key] = self._last_gripper_position if self._last_gripper_position is not None else 0.0
+                positions[gripper_key] = self._last_gripper_position
                 velocities[gripper_key] = 0.0
 
         self._last_joint_state = {"position": positions, "velocity": velocities}
