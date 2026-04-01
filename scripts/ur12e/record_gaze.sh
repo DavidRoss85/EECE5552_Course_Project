@@ -2,8 +2,8 @@
 lerobot-record \
     --robot.type=ur12e_ros \
     --teleop.type=ros_twist \
-    --dataset.repo_id=frazier-z/ur12e_gaze \
-    --dataset.root="$HOME/GitHub/EECE5552_Course_Project/datasets/ur12e_gaze" \
+    --dataset.repo_id=frazier-z/ur12e_gaze_with_gripper \
+    --dataset.root="$HOME/GitHub/EECE5552_Course_Project/datasets/ur12e_gaze_with_gripper" \
     --dataset.push_to_hub=false \
     --dataset.fps=15 \
     --dataset.num_episodes=10 \
@@ -14,5 +14,5 @@ lerobot-record \
     --robot.ros2_interface.gaze_topic_name=/vla/coords \
     --robot.ros2_interface.gaze_default_x=$1 \
     --robot.ros2_interface.gaze_default_y=$2 \
-    --robot.cameras="{ top: {type: opencv, index_or_path: ros:///cameras/front/image_raw, width: 640, height: 480, fps: 15 }, side: {type: opencv, index_or_path: /dev/video2, width: 640, height: 480, fps: 15 } }" \
-    --resume=true
+    --robot.cameras="{ top: {type: opencv, index_or_path: ros:///cameras/front/image_raw, width: 640, height: 480, fps: 15 }, side: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 15 } }" \
+
