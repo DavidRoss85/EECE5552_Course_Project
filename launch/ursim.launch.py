@@ -106,22 +106,22 @@ def generate_launch_description():
         actions=[move_group_node, rviz_node, servo_node],
     )
 
-    home_pose_cmd = (
-        'trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, '
-        'wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [3.14, -1.5707, '
-        '1.5707, -1.5707, -1.5707, 1.5707], time_from_start: {sec: 6, nanosec: 0}}]}'
-    )
-    home_pose_action = ExecuteProcess(
-        cmd=[
-            'ros2', 'action', 'send_goal',
-            '/scaled_joint_trajectory_controller/follow_joint_trajectory',
-            'control_msgs/action/FollowJointTrajectory',
-            home_pose_cmd,
-        ],
-        output='screen',
-        shell=False,
-    )
-    home_pose = TimerAction(period=10.0, actions=[home_pose_action])
+    # home_pose_cmd = (
+    #     'trajectory: {joint_names: [shoulder_pan_joint, shoulder_lift_joint, elbow_joint, '
+    #     'wrist_1_joint, wrist_2_joint, wrist_3_joint], points: [{positions: [3.14, -1.5707, '
+    #     '1.5707, -1.5707, -1.5707, 1.5707], time_from_start: {sec: 6, nanosec: 0}}]}'
+    # )
+    # home_pose_action = ExecuteProcess(
+    #     cmd=[
+    #         'ros2', 'action', 'send_goal',
+    #         '/scaled_joint_trajectory_controller/follow_joint_trajectory',
+    #         'control_msgs/action/FollowJointTrajectory',
+    #         home_pose_cmd,
+    #     ],
+    #     output='screen',
+    #     shell=False,
+    # )
+    # home_pose = TimerAction(period=10.0, actions=[home_pose_action])
 
     deactivate_trajectory = ExecuteProcess(
         cmd=['ros2', 'control', 'set_controller_state', 'scaled_joint_trajectory_controller', 'inactive'],
@@ -167,7 +167,7 @@ def generate_launch_description():
         robot_ip_arg,
         ur_driver,
         moveit,
-        home_pose,
+        # home_pose,
         step3_deactivate,
         step3_spawn,
         step4,
