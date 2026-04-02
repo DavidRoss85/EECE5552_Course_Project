@@ -6,7 +6,7 @@ lerobot-record \
     --dataset.root="$HOME/GitHub/EECE5552_Course_Project/datasets/ur12e_gaze_with_gripper" \
     --dataset.push_to_hub=false \
     --dataset.fps=15 \
-    --dataset.num_episodes=10 \
+    --dataset.num_episodes=5 \
     --dataset.episode_time_s=45 \
     --dataset.reset_time_s=30 \
     --dataset.single_task="grab target block" \
@@ -14,5 +14,5 @@ lerobot-record \
     --robot.ros2_interface.gaze_topic_name=/vla/coords \
     --robot.ros2_interface.gaze_default_x=$1 \
     --robot.ros2_interface.gaze_default_y=$2 \
-    --robot.cameras="{ top: {type: opencv, index_or_path: ros:///cameras/front/image_raw, width: 640, height: 480, fps: 15 }, side: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 15 } }" \
-
+    --robot.cameras="{ top: {type: opencv, index_or_path: ros:///cameras/front/image_raw, width: 640, height: 480, fps: 15 }, side: {type: opencv, index_or_path: /dev/video4, width: 640, height: 480, fps: 15 }, gripper: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 15 } }" \
+    --resume=true
