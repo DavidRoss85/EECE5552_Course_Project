@@ -33,7 +33,7 @@ def generate_launch_description():
             {"axis_linear.z": 3},
             {"scale_linear.z": -0.5},
             {"scale_linear.x": -0.5},
-            {"scale_linear.y": -0.5},
+            {"scale_linear.y": 0.5},
         ],
         output="screen",
     )

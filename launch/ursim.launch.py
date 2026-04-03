@@ -58,6 +58,14 @@ def generate_launch_description():
         .to_dict()
     }
 
+    horizontal_plane_node = Node(
+        package="robot_control",
+        executable="horizontal_plane_setup",
+        name="horizontal_plane_setup",
+        output="screen",
+        parameters=[{"use_sim_time": False}],
+    )
+
     servo_node = Node(
         package="moveit_servo",
         executable="servo_node",
@@ -103,7 +111,7 @@ def generate_launch_description():
     # Wait for the driver + controllers to be ready before starting MoveIt
     moveit = TimerAction(
         period=5.0,
-        actions=[move_group_node, rviz_node, servo_node],
+        actions=[move_group_node, rviz_node, servo_node, horizontal_plane_node],
     )
 
     # home_pose_cmd = (

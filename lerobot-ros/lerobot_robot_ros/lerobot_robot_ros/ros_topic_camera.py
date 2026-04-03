@@ -74,7 +74,7 @@ class ROSTopicCamera:
         )
 
     def _cb(self, msg: Image) -> None:
-        frame = self._image_to_bgr(msg)
+        frame = self._image_to_rgb(msg)
         if frame is None:
             return
         if frame.shape[1] != self.cfg.width or frame.shape[0] != self.cfg.height:
@@ -84,7 +84,7 @@ class ROSTopicCamera:
             self._last_frame_time = time.perf_counter()
 
     @staticmethod
-    def _image_to_bgr(msg: Image) -> np.ndarray | None:
+    def _image_to_rgb(msg: Image) -> np.ndarray | None:
         if msg.encoding not in ("rgb8", "bgr8", "rgba8", "bgra8", "mono8"):
             return None
         channels = 3 if msg.encoding in ("rgb8", "bgr8") else (4 if msg.encoding in ("rgba8", "bgra8") else 1)
@@ -94,14 +94,14 @@ class ROSTopicCamera:
             return None
         frame = data[:expected].reshape((msg.height, msg.step))
         frame = frame[:, : msg.width * channels].reshape((msg.height, msg.width, channels))
-        if msg.encoding == "rgb8":
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        if msg.encoding == "bgr8":
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         elif msg.encoding == "rgba8":
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
         elif msg.encoding == "bgra8":
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2RGB)
         elif msg.encoding == "mono8":
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
         return frame
 
 

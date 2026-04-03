@@ -31,6 +31,7 @@ setup(
                 'ros_image_to_raw = robot_control.ros_image_to_raw:main',
                 'gripper_urscript_node = robot_control.gripper_urscript_node:main',
                 'gripper_moveit_bridge = robot_control.gripper_moveit_bridge:main',
+                'horizontal_plane_setup = robot_control.horizontal_plane_setup:main',
             ],
         },
 )
