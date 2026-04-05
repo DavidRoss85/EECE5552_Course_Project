@@ -1,0 +1,3 @@
+[submodule "third_party/EyeGestures"]
+	path = third_party/EyeGestures
+	url = https://github.com/NativeSensors/EyeGestures.git
