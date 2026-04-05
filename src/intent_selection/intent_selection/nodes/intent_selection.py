@@ -41,6 +41,7 @@ class IntentSelectionNode(Node):
         self.declare_parameter("detections_topic", ROS_CONFIGS.topic_detections)
         self.declare_parameter("voice_commands_topic", ROS_CONFIGS.topic_text_commands)
         self.declare_parameter("vla_input_topic", ROS_CONFIGS.topic_vla_input)
+        self.declare_parameter("intention_output_topic", ROS_CONFIGS.topic_intention_output)
         self.declare_parameter("max_messages", ROS_CONFIGS.max_messages)
         
         # Camera configuration
@@ -62,6 +63,7 @@ class IntentSelectionNode(Node):
         self._detections_topic = self.get_parameter("detections_topic").value
         self._voice_commands_topic = self.get_parameter("voice_commands_topic").value
         self._vla_input_topic = self.get_parameter("vla_input_topic").value
+        self._intention_output_topic = self.get_parameter("intention_output_topic").value
         self._max_messages = self.get_parameter("max_messages").value
         
         # Camera configuration
@@ -97,7 +99,8 @@ class IntentSelectionNode(Node):
         self._detections_available = False
         
         # Valid voice commands from config
-        self._valid_commands = DEFAULT_SELECTION_CONFIG.text_commands
+        self._eye_gaze_commands = DEFAULT_SELECTION_CONFIG.eye_gaze_commands
+        self._general_commands = DEFAULT_SELECTION_CONFIG.general_commands
         
         # Colors for visualization (BGR format)
         self._colors = {
@@ -129,6 +132,11 @@ class IntentSelectionNode(Node):
             String, self._vla_input_topic, self._max_messages
         )
         
+        # Publisher for general intention commands
+        self._intention_pub = self.create_publisher(
+            String, self._intention_output_topic, self._max_messages
+        )
+        
         # Timer for display updates and device camera capture
         if self._camera_source.lower() == 'device':
             self._camera_timer = self.create_timer(1.0/self._frame_rate, self._capture_device_frame)
@@ -144,7 +152,9 @@ class IntentSelectionNode(Node):
         self.get_logger().info(f"Detections: {self._detections_topic}")
         self.get_logger().info(f"Voice Commands: {self._voice_commands_topic}")
         self.get_logger().info(f"VLA Output: {self._vla_input_topic}")
-        self.get_logger().info(f"Valid Commands: {self._valid_commands}")
+        self.get_logger().info(f"Intention Output: {self._intention_output_topic}")
+        self.get_logger().info(f"Eye Gaze Commands: {self._eye_gaze_commands}")
+        self.get_logger().info(f"General Commands: {self._general_commands}")
     
     def _init_topic_camera(self):
         """Initialize camera from ROS topic."""
@@ -226,66 +236,95 @@ class IntentSelectionNode(Node):
             
             self.get_logger().info(f"Received voice command: {command}")
             
-            # Check if command is valid
-            is_valid_command = any(valid_cmd in command for valid_cmd in self._valid_commands)
+            # Check command type
+            is_gaze_command = any(gaze_cmd in command for gaze_cmd in self._eye_gaze_commands)
+            is_general_command = any(gen_cmd in command for gen_cmd in self._general_commands)
             
-            if not is_valid_command:
-                self.get_logger().warn(f"Invalid command received: {command}")
-                return
-            
-            # Check if we have valid input for target selection
-            if not self._gaze_available:
-                self.get_logger().warn("No eye gaze data available")
-                return
-            
-            # Determine target coordinates
-            target_data = None
-            if self._detections_available and self._selected_object_idx >= 0:
-                # Use selected object from detections
-                selected_object = self._current_detections[self._selected_object_idx]
-                target_data = {
-                    "source": "object_detection",
-                    "name": selected_object.name,
-                    "index": selected_object.index,
-                    "center_x": selected_object.xywh[0],
-                    "center_y": selected_object.xywh[1],
-                    "confidence": selected_object.confidence
-                }
-                self.get_logger().info(f"Using detected object: {selected_object.name}")
-            elif self._current_gaze:
-                # Fall back to raw gaze coordinates
-                gaze_x, gaze_y = self._current_gaze
-                target_data = {
-                    "source": "raw_gaze",
-                    "name": "gaze_target",
-                    "index": -1,
-                    "center_x": gaze_x,
-                    "center_y": gaze_y,
-                    "confidence": 1.0
-                }
-                self.get_logger().info(f"Using raw gaze coordinates: ({gaze_x}, {gaze_y})")
+            if is_general_command:
+                # Handle general commands that don't require gaze
+                self._handle_general_command(command, command_data)
+            elif is_gaze_command:
+                # Handle gaze-based commands
+                self._handle_gaze_command(command, command_data)
             else:
-                self.get_logger().warn("No valid target available (no gaze or detections)")
-                return
-            
-            # Create VLA command
-            vla_command = {
-                "command": command,
-                "target": target_data,
-                "timestamp": self.get_clock().now().to_msg().sec
-            }
-            
-            # Publish to VLA
-            vla_msg = String()
-            vla_msg.data = json.dumps(vla_command)
-            self._vla_pub.publish(vla_msg)
-            
-            self.get_logger().info(f"Published VLA command: {target_data['name']} at ({target_data['center_x']}, {target_data['center_y']})")
-            
+                self.get_logger().warn(f"Unrecognized command: {command}")
+                
         except json.JSONDecodeError as e:
             self.get_logger().error(f"Failed to parse voice command JSON: {e}")
         except Exception as e:
             self.get_logger().error(f"Error processing voice command: {e}")
+    
+    def _handle_general_command(self, command: str, command_data: dict):
+        """Handle general commands that don't require eye gaze data."""
+        self.get_logger().info(f"Processing general command: {command}")
+        
+        # Create intention command for general commands
+        intention_command = {
+            "type": "general_command",
+            "command": command,
+            "original_data": command_data,
+            "timestamp": self.get_clock().now().to_msg().sec
+        }
+        
+        # Publish to intention output topic
+        intention_msg = String()
+        intention_msg.data = json.dumps(intention_command)
+        self._intention_pub.publish(intention_msg)
+        
+        self.get_logger().info(f"Published general command to intention output: {command}")
+    
+    def _handle_gaze_command(self, command: str, command_data: dict):
+        """Handle commands that require eye gaze data."""
+        # Check if we have valid input for target selection
+        if not self._gaze_available:
+            self.get_logger().warn("Eye gaze command received but no eye gaze data available")
+            return
+        
+        # Determine target coordinates
+        target_data = None
+        if self._detections_available and self._selected_object_idx >= 0:
+            # Use selected object from detections
+            selected_object = self._current_detections[self._selected_object_idx]
+            target_data = {
+                "source": "object_detection",
+                "name": selected_object.name,
+                "index": selected_object.index,
+                "center_x": selected_object.xywh[0],
+                "center_y": selected_object.xywh[1],
+                "confidence": selected_object.confidence
+            }
+            self.get_logger().info(f"Using detected object: {selected_object.name}")
+        elif self._current_gaze:
+            # Fall back to raw gaze coordinates
+            gaze_x, gaze_y = self._current_gaze
+            target_data = {
+                "source": "raw_gaze",
+                "name": "gaze_target",
+                "index": -1,
+                "center_x": gaze_x,
+                "center_y": gaze_y,
+                "confidence": 1.0
+            }
+            self.get_logger().info(f"Using raw gaze coordinates: ({gaze_x}, {gaze_y})")
+        else:
+            self.get_logger().warn("No valid target available (no gaze or detections)")
+            return
+        
+        # Create VLA command
+        vla_command = {
+            "type": "gaze_command",
+            "command": command,
+            "target": target_data,
+            "original_data": command_data,
+            "timestamp": self.get_clock().now().to_msg().sec
+        }
+        
+        # Publish to VLA
+        vla_msg = String()
+        vla_msg.data = json.dumps(vla_command)
+        self._vla_pub.publish(vla_msg)
+        
+        self.get_logger().info(f"Published VLA command: {target_data['name']} at ({target_data['center_x']}, {target_data['center_y']})")
     
     def _update_selected_object(self):
         """Update which object is currently selected by gaze."""
