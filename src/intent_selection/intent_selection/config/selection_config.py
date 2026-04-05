@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class SelectionConfig:
-    text_commands: list[str] = field(default_factory=lambda: VERBAL_COMMANDS)
+    eye_gaze_commands: list[str] = field(default_factory=lambda: VERBAL_COMMANDS)
     camera_source: str = 'device'  # 'device' or 'topic'
     camera_device: str = '/dev/video0'  # Used if camera_source is 'device
     image_width: int = 1280

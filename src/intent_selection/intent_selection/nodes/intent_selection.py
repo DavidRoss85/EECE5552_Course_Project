@@ -23,7 +23,7 @@ from std_msgs.msg import String
 from cv_bridge import CvBridge
 
 from robot_interfaces.msg import DetectedList
-from intent_selection.config.ros_presets import ROS_CONFIGS
+from intent_selection.config.ros_presets import STD_CFG as ROS_CONFIGS
 from intent_selection.config.selection_presets import DEFAULT_SELECTION_CONFIG
 
 
@@ -91,6 +91,10 @@ class IntentSelectionNode(Node):
         self._current_detections = None
         self._calibration_points = []
         self._selected_object_idx = -1  # Index of currently gazed object
+        
+        # Status tracking
+        self._gaze_available = False
+        self._detections_available = False
         
         # Valid voice commands from config
         self._valid_commands = DEFAULT_SELECTION_CONFIG.text_commands
@@ -195,6 +199,7 @@ class IntentSelectionNode(Node):
     def _gaze_callback(self, msg: Point):
         """Store the latest gaze coordinates."""
         self._current_gaze = (int(msg.x), int(msg.y))
+        self._gaze_available = True
         self._update_selected_object()
     
     def _calibration_callback(self, msg: Point):
@@ -209,6 +214,7 @@ class IntentSelectionNode(Node):
     def _detections_callback(self, msg: DetectedList):
         """Store the latest object detections."""
         self._current_detections = msg.item_list
+        self._detections_available = len(msg.item_list) > 0
         self._update_selected_object()
     
     def _voice_callback(self, msg: String):
@@ -227,24 +233,45 @@ class IntentSelectionNode(Node):
                 self.get_logger().warn(f"Invalid command received: {command}")
                 return
             
-            # Check if we have a selected object
-            if self._selected_object_idx < 0 or not self._current_detections:
-                self.get_logger().warn("No object currently selected by gaze")
+            # Check if we have valid input for target selection
+            if not self._gaze_available:
+                self.get_logger().warn("No eye gaze data available")
                 return
             
-            # Get the selected object
-            selected_object = self._current_detections[self._selected_object_idx]
-            
-            # Create VLA command
-            vla_command = {
-                "command": command,
-                "target_object": {
+            # Determine target coordinates
+            target_data = None
+            if self._detections_available and self._selected_object_idx >= 0:
+                # Use selected object from detections
+                selected_object = self._current_detections[self._selected_object_idx]
+                target_data = {
+                    "source": "object_detection",
                     "name": selected_object.name,
                     "index": selected_object.index,
                     "center_x": selected_object.xywh[0],
                     "center_y": selected_object.xywh[1],
                     "confidence": selected_object.confidence
-                },
+                }
+                self.get_logger().info(f"Using detected object: {selected_object.name}")
+            elif self._current_gaze:
+                # Fall back to raw gaze coordinates
+                gaze_x, gaze_y = self._current_gaze
+                target_data = {
+                    "source": "raw_gaze",
+                    "name": "gaze_target",
+                    "index": -1,
+                    "center_x": gaze_x,
+                    "center_y": gaze_y,
+                    "confidence": 1.0
+                }
+                self.get_logger().info(f"Using raw gaze coordinates: ({gaze_x}, {gaze_y})")
+            else:
+                self.get_logger().warn("No valid target available (no gaze or detections)")
+                return
+            
+            # Create VLA command
+            vla_command = {
+                "command": command,
+                "target": target_data,
                 "timestamp": self.get_clock().now().to_msg().sec
             }
             
@@ -253,7 +280,7 @@ class IntentSelectionNode(Node):
             vla_msg.data = json.dumps(vla_command)
             self._vla_pub.publish(vla_msg)
             
-            self.get_logger().info(f"Published VLA command: {selected_object.name} at ({selected_object.xywh[0]}, {selected_object.xywh[1]})")
+            self.get_logger().info(f"Published VLA command: {target_data['name']} at ({target_data['center_x']}, {target_data['center_y']})")
             
         except json.JSONDecodeError as e:
             self.get_logger().error(f"Failed to parse voice command JSON: {e}")
@@ -262,7 +289,12 @@ class IntentSelectionNode(Node):
     
     def _update_selected_object(self):
         """Update which object is currently selected by gaze."""
-        if not self._current_gaze or not self._current_detections:
+        if not self._gaze_available or not self._current_gaze:
+            self._selected_object_idx = -1
+            return
+        
+        # If no detections available, no object selection possible
+        if not self._detections_available or not self._current_detections:
             self._selected_object_idx = -1
             return
         
@@ -292,7 +324,7 @@ class IntentSelectionNode(Node):
         display_frame = self._current_frame.copy()
         
         # Draw detection bounding boxes
-        if self._current_detections:
+        if self._detections_available and self._current_detections:
             for idx, detection in enumerate(self._current_detections):
                 # Get bounding box from xyxy format
                 x1, y1, x2, y2 = detection.xyxy[:4]
@@ -313,7 +345,7 @@ class IntentSelectionNode(Node):
                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         
         # Draw gaze circle
-        if self._current_gaze:
+        if self._gaze_available and self._current_gaze:
             gaze_x, gaze_y = self._current_gaze
             cv2.circle(display_frame, (gaze_x, gaze_y), 10, self._colors['gaze_circle'], -1)
             cv2.circle(display_frame, (gaze_x, gaze_y), 12, self._colors['gaze_circle'], 2)
@@ -323,15 +355,44 @@ class IntentSelectionNode(Node):
             cv2.circle(display_frame, cal_point, 15, self._colors['calibration'], 2)
             cv2.circle(display_frame, cal_point, 5, self._colors['calibration'], -1)
         
-        # Add status text
+        # Draw status indicators in top right
+        frame_height, frame_width = display_frame.shape[:2]
+        
+        # Status messages for missing components
+        status_messages = []
+        if not self._gaze_available:
+            status_messages.append("No eye gaze available")
+        if not self._detections_available:
+            status_messages.append("No object detection available")
+        
+        # Draw status messages in top right
+        for i, message in enumerate(status_messages):
+            text_size = cv2.getTextSize(message, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+            x_pos = frame_width - text_size[0] - 10
+            y_pos = 30 + i * 25
+            
+            # Background rectangle for text
+            cv2.rectangle(display_frame, 
+                         (x_pos - 5, y_pos - text_size[1] - 5), 
+                         (x_pos + text_size[0] + 5, y_pos + 5), 
+                         (0, 0, 0), -1)
+            
+            # Text
+            cv2.putText(display_frame, message, (x_pos, y_pos), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+        
+        # Add status text in bottom left
         status_lines = []
-        if self._selected_object_idx >= 0 and self._current_detections:
+        if self._detections_available and self._selected_object_idx >= 0 and self._current_detections:
             selected_obj = self._current_detections[self._selected_object_idx]
             status_lines.append(f"Selected: {selected_obj.name}")
+        elif self._gaze_available:
+            status_lines.append("Target: Raw gaze coordinates")
         else:
-            status_lines.append("No object selected")
+            status_lines.append("No target selected")
         
-        status_lines.append(f"Gaze: {self._current_gaze if self._current_gaze else 'None'}")
+        if self._gaze_available:
+            status_lines.append(f"Gaze: {self._current_gaze}")
         status_lines.append(f"Objects detected: {len(self._current_detections) if self._current_detections else 0}")
         
         # Draw status text

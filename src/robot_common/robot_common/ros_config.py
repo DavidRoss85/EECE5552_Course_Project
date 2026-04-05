@@ -14,6 +14,7 @@ class TopicKey(str, Enum):
     MOVEIT_PLANNING = '/moveit/planning'
     OBJECT_DETECTIONS = '/intent_selection/detections'
     TEXT_COMMANDS = '/intent_selection/text_commands'
+    INTENTION_OUTPUT = '/intent_selection/intention_output'
 
 from dataclasses import dataclass
 
@@ -32,6 +33,7 @@ class RosConfig:
     topic_moveit_planning: str=TopicKey.MOVEIT_PLANNING
     topic_detections: str=TopicKey.OBJECT_DETECTIONS
     topic_text_commands: str=TopicKey.TEXT_COMMANDS
+    topic_intention_output: str=TopicKey.INTENTION_OUTPUT
     max_messages: int = 10
     sync_slop = 0.1
 
