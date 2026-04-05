@@ -24,7 +24,8 @@ setup(
     extras_require={'test': ['pytest']},
     entry_points={
         'console_scripts': [
-            'gaze_tracking_node = gaze_tracking.gaze_tracking_node:main',
+            'old_gaze_tracking_node = gaze_tracking.gaze_tracking_node:main',
+            'gaze_tracking_node = gaze_tracking.nodes.gaze_tracker_integrated:main',
         ],
     },
 )
