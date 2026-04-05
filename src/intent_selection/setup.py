@@ -26,6 +26,8 @@ setup(
         'console_scripts': [
             'object_detections_node = intent_selection.nodes.object_detections:main',
             'object_selection_node = intent_selection.nodes.object_selection:main',
+            'intent_selection_node = intent_selection.nodes.intent_selection:main',
+            'test_intent_selection_node = intent_selection.nodes.intent_selection_tester:main',
         ],
     },
 )
