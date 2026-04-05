@@ -14,7 +14,8 @@ from cv_bridge import CvBridge
 from eyeGestures.utils import VideoCapture
 from eyeGestures import EyeGestures_v2
 
-from gaze_tracking.config.ros2_presets import STD_CFG
+from gaze_tracking.config.ros2_presets import STD_CFG as ROS_PRESETS
+from gaze_tracking.config.gaze_presets import GAZE_PRESETS
 
 print(''.join(chr(x-7) for x in [104,105,107,124,115,39,121,104,111,116,104,117]))
 
@@ -23,18 +24,25 @@ class GazeTrackingNode(Node):
     def __init__(self):
         super().__init__('gaze_tracking_node')
 
+        self._ros_config = ROS_PRESETS  # Load ROS topic config from centralized config file
+        self._gaze_config = GAZE_PRESETS  # Load gaze tracking config from gaze-specific config file
+
         # -- Parameters --
         # 'input_mode': 'device' reads directly from a camera, 'topic' subscribes to a ROS2 image topic
-        self.declare_parameter('input_mode', 'device')       # 'device' | 'topic'
-        self.declare_parameter('camera_device', '/dev/video0')
-        self.declare_parameter('env_image_width', 600)
-        self.declare_parameter('env_image_height', 500)
-        self.declare_parameter('calib_points', 25)
-        self.declare_parameter('test_mode', False)           # skip EyeGestures, publish dummy gaze
-        self.declare_parameter('show_feed', True)            # display the camera feed in a window
-        self.declare_parameter('show_fullscreen', False)     # display feed as fullscreen window
-        self.declare_parameter('mirror_x', True)             # flip x coords for non-mirrored cameras
-        self.declare_parameter('use_calib_map', False)       # use custom calibration map vs EyeGestures default
+        self.declare_parameter('input_mode', self._gaze_config.input_mode)       # 'device' | 'topic'
+        self.declare_parameter('camera_device', self._gaze_config.camera_device)
+        self.declare_parameter('env_image_width', self._gaze_config.env_width)
+        self.declare_parameter('env_image_height', self._gaze_config.env_height)
+        self.declare_parameter('calib_points', self._gaze_config.calib_points)
+        self.declare_parameter('test_mode', self._gaze_config.test_mode)           # skip EyeGestures, publish dummy gaze
+        self.declare_parameter('show_feed', self._gaze_config.show_feed)            # display the camera feed in a window
+        self.declare_parameter('show_fullscreen', self._gaze_config.show_fullscreen)     # display feed as fullscreen window
+        self.declare_parameter('mirror_x', self._gaze_config.mirror_x_axis)             # flip x coords for non-mirrored cameras
+        self.declare_parameter('use_calib_map', self._gaze_config.use_calibration_map)       # use custom calibration map vs EyeGestures default
+        #-- ROS topic parameters (with defaults from centralized config) --
+        self.declare_parameter('eye_gaze_topic', self._ros_config.topic_eye_gaze)
+        self.declare_parameter('eye_gaze_calibration_topic', self._ros_config.topic_eye_gaze_calibration)
+        self.declare_parameter('max_ros_messages', self._ros_config.max_messages)
 
         self._env_w      = self.get_parameter('env_image_width').value
         self._env_h      = self.get_parameter('env_image_height').value
@@ -45,11 +53,13 @@ class GazeTrackingNode(Node):
         self._use_calib_map  = self.get_parameter('use_calib_map').value
         self._input_mode = self.get_parameter('input_mode').value
         self._cam_device = self.get_parameter('camera_device').value
-        self._ros_config = STD_CFG
+        self._eye_gaze_topic = self.get_parameter('eye_gaze_topic').value
+        self._calibration_topic = self.get_parameter('eye_gaze_calibration_topic').value
+        self._max_ros_messages = self.get_parameter('max_ros_messages').value
 
         # -- Publishers --
-        self._gaze_pub  = self.create_publisher(Point, self._ros_config.topic_eye_gaze, self._ros_config.max_messages)
-        self._calib_pub = self.create_publisher(Point, self._ros_config.topic_eye_gaze_calibration, self._ros_config.max_messages)
+        self._gaze_pub  = self.create_publisher(Point, self._eye_gaze_topic, self._max_ros_messages)
+        self._calib_pub = self.create_publisher(Point, self._calibration_topic, self._max_ros_messages)
 
         # -- Shared state with tracker thread --
         self._lock         = threading.Lock()
@@ -79,7 +89,7 @@ class GazeTrackingNode(Node):
                 Image,
                 self._ros_config.topic_eye_camera_rgb,
                 self._camera_topic_cb,
-                10
+                self._max_ros_messages
             )
             self._thread = threading.Thread(target=self._tracker_loop_topic, daemon=True)
             self.get_logger().info(
