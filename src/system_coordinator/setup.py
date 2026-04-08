@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'orchestrator_node = orchestrator.orchestrator_node:main',
+            'orchestrator_node = system_coordinator.nodes.orchestrator_node:main',
         ],
     },
 )

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 import os
 
-from robot_common.config.ros_config import STD_CFG as ROS_CFG
+from robot_common.ros_config import STD_CFG as ROS_CFG
 
 
 # ---------------------------------------------------------------------------

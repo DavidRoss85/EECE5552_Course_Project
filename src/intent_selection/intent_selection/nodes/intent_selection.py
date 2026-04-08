@@ -10,6 +10,7 @@ This node:
 3. Shows calibration points when needed
 4. Captures voice commands and maps them to gazed objects
 5. Publishes intent commands to VLA input topic
+6. Supports fullscreen display mode via configuration
 """
 
 import json
@@ -45,14 +46,17 @@ class IntentSelectionNode(Node):
         self.declare_parameter("max_messages", ROS_CONFIGS.max_messages)
         
         # Camera configuration
-        self.declare_parameter("camera_source", DEFAULT_SELECTION_CONFIG.camera_source)  # 'topic' or 'device'
-        self.declare_parameter("camera_device", DEFAULT_SELECTION_CONFIG.camera_device)  # e.g., '/dev/video0' or 0
+        self.declare_parameter("camera_source", DEFAULT_SELECTION_CONFIG.camera_source)
+        self.declare_parameter("camera_device", DEFAULT_SELECTION_CONFIG.camera_device)
         self.declare_parameter("image_width", DEFAULT_SELECTION_CONFIG.image_width)
         self.declare_parameter("image_height", DEFAULT_SELECTION_CONFIG.image_height)
         self.declare_parameter("frame_rate", DEFAULT_SELECTION_CONFIG.frame_rate)
         
-        # Interface settings
+        # Display settings
         self.declare_parameter("display_window_name", DEFAULT_SELECTION_CONFIG.window_name)
+        self.declare_parameter("display_fullscreen", DEFAULT_SELECTION_CONFIG.display_fullscreen)
+        self.declare_parameter("window_width", DEFAULT_SELECTION_CONFIG.window_width)
+        self.declare_parameter("window_height", DEFAULT_SELECTION_CONFIG.window_height)
         self.declare_parameter("gaze_proximity_threshold", DEFAULT_SELECTION_CONFIG.gaze_proximity_threshold)
         
         # Get parameter values
@@ -73,13 +77,17 @@ class IntentSelectionNode(Node):
         self._image_height = self.get_parameter("image_height").value
         self._frame_rate = self.get_parameter("frame_rate").value
         
-        # Interface settings
+        # Display settings
         self._window_name = self.get_parameter("display_window_name").value
+        self._fullscreen = self.get_parameter("display_fullscreen").value
+        self._window_width = self.get_parameter("window_width").value
+        self._window_height = self.get_parameter("window_height").value
         self._proximity_threshold = self.get_parameter("gaze_proximity_threshold").value
         
         # Initialize OpenCV bridge and camera
         self._bridge = CvBridge()
         self._cap = None
+        self._window_initialized = False
         
         # Initialize camera based on source
         if self._camera_source.lower() == 'device':
@@ -148,6 +156,7 @@ class IntentSelectionNode(Node):
             self.get_logger().info(f"Camera Topic: {self._camera_topic}")
         else:
             self.get_logger().info(f"Camera Device: {self._camera_device}")
+        self.get_logger().info(f"Display Mode: {'Fullscreen' if self._fullscreen else f'Windowed ({self._window_width}x{self._window_height})'}")
         self.get_logger().info(f"Gaze: {self._gaze_topic}")
         self.get_logger().info(f"Detections: {self._detections_topic}")
         self.get_logger().info(f"Voice Commands: {self._voice_commands_topic}")
@@ -155,6 +164,53 @@ class IntentSelectionNode(Node):
         self.get_logger().info(f"Intention Output: {self._intention_output_topic}")
         self.get_logger().info(f"Eye Gaze Commands: {self._eye_gaze_commands}")
         self.get_logger().info(f"General Commands: {self._general_commands}")
+    
+    def _init_display_window(self):
+        """Initialize OpenCV display window with fullscreen or windowed mode."""
+        if self._window_initialized:
+            return
+            
+        # Create window
+        cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
+        
+        if self._fullscreen:
+            # Set fullscreen mode
+            cv2.setWindowProperty(self._window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            self.get_logger().info("Display set to fullscreen mode")
+        else:
+            # Set windowed mode with specific size
+            cv2.resizeWindow(self._window_name, self._window_width, self._window_height)
+            cv2.setWindowProperty(self._window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            self.get_logger().info(f"Display set to windowed mode: {self._window_width}x{self._window_height}")
+        
+        # Add key bindings info
+        self.get_logger().info("Key bindings: F - toggle fullscreen, ESC/Q - quit")
+        
+        self._window_initialized = True
+    
+    def _toggle_fullscreen(self):
+        """Toggle between fullscreen and windowed mode."""
+        self._fullscreen = not self._fullscreen
+        
+        if self._fullscreen:
+            cv2.setWindowProperty(self._window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            self.get_logger().info("Switched to fullscreen mode")
+        else:
+            cv2.setWindowProperty(self._window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self._window_name, self._window_width, self._window_height)
+            self.get_logger().info(f"Switched to windowed mode: {self._window_width}x{self._window_height}")
+    
+    def _handle_keyboard_input(self):
+        """Handle keyboard input for display control."""
+        key = cv2.waitKey(1) & 0xFF
+        
+        if key == ord('f') or key == ord('F'):
+            # Toggle fullscreen
+            self._toggle_fullscreen()
+        elif key == 27 or key == ord('q') or key == ord('Q'):  # ESC or Q
+            # Quit (this will be handled by the main loop)
+            self.get_logger().info("Quit key pressed")
+            rclpy.shutdown()
     
     def _init_topic_camera(self):
         """Initialize camera from ROS topic."""
@@ -289,8 +345,8 @@ class IntentSelectionNode(Node):
                 "source": "object_detection",
                 "name": selected_object.name,
                 "index": selected_object.index,
-                "center_x": selected_object.xywh[0],
-                "center_y": selected_object.xywh[1],
+                "x": selected_object.xywh[0],  # Use x,y for orchestrator compatibility
+                "y": selected_object.xywh[1],
                 "confidence": selected_object.confidence
             }
             self.get_logger().info(f"Using detected object: {selected_object.name}")
@@ -301,8 +357,8 @@ class IntentSelectionNode(Node):
                 "source": "raw_gaze",
                 "name": "gaze_target",
                 "index": -1,
-                "center_x": gaze_x,
-                "center_y": gaze_y,
+                "x": gaze_x,  # Use x,y for orchestrator compatibility
+                "y": gaze_y,
                 "confidence": 1.0
             }
             self.get_logger().info(f"Using raw gaze coordinates: ({gaze_x}, {gaze_y})")
@@ -310,8 +366,8 @@ class IntentSelectionNode(Node):
             self.get_logger().warn("No valid target available (no gaze or detections)")
             return
         
-        # Create VLA command
-        vla_command = {
+        # Create intention command - publish to orchestrator
+        intention_command = {
             "type": "gaze_command",
             "command": command,
             "target": target_data,
@@ -319,12 +375,12 @@ class IntentSelectionNode(Node):
             "timestamp": self.get_clock().now().to_msg().sec
         }
         
-        # Publish to VLA
-        vla_msg = String()
-        vla_msg.data = json.dumps(vla_command)
-        self._vla_pub.publish(vla_msg)
+        # Publish to intention output topic (orchestrator will handle VLA)
+        intention_msg = String()
+        intention_msg.data = json.dumps(intention_command)
+        self._intention_pub.publish(intention_msg)
         
-        self.get_logger().info(f"Published VLA command: {target_data['name']} at ({target_data['center_x']}, {target_data['center_y']})")
+        self.get_logger().info(f"Published targeted command to orchestrator: {target_data['name']} at ({target_data['x']}, {target_data['y']})")
     
     def _update_selected_object(self):
         """Update which object is currently selected by gaze."""
@@ -358,6 +414,10 @@ class IntentSelectionNode(Node):
         """Update the display window with overlays."""
         if self._current_frame is None:
             return
+        
+        # Initialize display window if needed
+        if not self._window_initialized:
+            self._init_display_window()
         
         # Copy frame for drawing
         display_frame = self._current_frame.copy()
@@ -434,6 +494,9 @@ class IntentSelectionNode(Node):
             status_lines.append(f"Gaze: {self._current_gaze}")
         status_lines.append(f"Objects detected: {len(self._current_detections) if self._current_detections else 0}")
         
+        # Add fullscreen indicator
+        status_lines.append(f"Display: {'Fullscreen (F to toggle)' if self._fullscreen else 'Windowed (F to toggle)'}")
+        
         # Draw status text
         for i, line in enumerate(status_lines):
             y_pos = 30 + i * 25
@@ -444,7 +507,9 @@ class IntentSelectionNode(Node):
         
         # Show the frame
         cv2.imshow(self._window_name, display_frame)
-        cv2.waitKey(1)
+        
+        # Handle keyboard input
+        self._handle_keyboard_input()
     
     def destroy_node(self):
         """Clean up resources."""

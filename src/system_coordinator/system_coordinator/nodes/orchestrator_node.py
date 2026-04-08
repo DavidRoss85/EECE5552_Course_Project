@@ -163,6 +163,9 @@ class OrchestratorNode(Node):
         else:
             self._handle_general_command(data)
 
+    #===========================================================
+    # COMMAND HANDLERS, HARD BAKED IN FOR NOW:
+    #===========================================================
     def _handle_general_command(self, data: Dict[str, Any]):
         """
         Handle commands that don't require arm movement or coordinates.
@@ -221,6 +224,7 @@ class OrchestratorNode(Node):
         
         # Transition to inference state
         self._transition_to(OrchestratorState.INFERENCE)
+    #===========================================================
 
     # ── VLA Status Monitoring ────────────────────────────────────────────────
 
