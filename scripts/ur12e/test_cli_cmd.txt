@@ -1,0 +1,8 @@
+ros2 topic pub --once /intent_selection/intention_output std_msgs/String '{
+  data: "{
+    \"type\": \"gaze_command\",
+    \"command\": \"pick up red block\",
+    \"target\": {\"x\": 320, \"y\": 240, \"name\": \"red\", \"confidence\": 0.95},
+    \"timestamp\": 1234567890
+  }"
+}'
