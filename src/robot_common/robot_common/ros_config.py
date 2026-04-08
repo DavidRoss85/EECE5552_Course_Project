@@ -16,6 +16,12 @@ class TopicKey(str, Enum):
     OBJECT_DETECTIONS   = '/intent_selection/detections'
     TEXT_COMMANDS       = '/intent_selection/text_commands'
     INTENTION_OUTPUT    = '/intent_selection/intention_output'
+    # Orchestrator topics
+    ORCHESTRATOR_STATE  = '/orchestrator/state'
+    GRIPPER_POSITION    = '/gripper_position'
+    GOAL_POSE          = '/goal_pose'
+    # Camera topics for LeRobot
+    CAMERAS_BASE        = '/cameras/'
 
 from dataclasses import dataclass
 
@@ -38,6 +44,13 @@ class RosConfig:
     topic_detections:           str = TopicKey.OBJECT_DETECTIONS
     topic_text_commands:        str = TopicKey.TEXT_COMMANDS
     topic_intention_output:     str = TopicKey.INTENTION_OUTPUT
+    topic_orchestrator_state:   str = TopicKey.ORCHESTRATOR_STATE
+    topic_gripper_position:     str = TopicKey.GRIPPER_POSITION
+    topic_goal_pose:            str = TopicKey.GOAL_POSE
+    # LeRobot camera topics
+    topic_camera_top:           str = TopicKey.CAMERAS_BASE + 'top/image_raw'
+    topic_camera_side:          str = TopicKey.CAMERAS_BASE + 'side/image_raw' 
+    topic_camera_front:         str = TopicKey.CAMERAS_BASE + 'front/image_raw'
     max_messages:               int = 10
     sync_slop                       = 0.1
 

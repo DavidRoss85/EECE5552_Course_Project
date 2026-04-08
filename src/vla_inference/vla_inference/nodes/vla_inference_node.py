@@ -31,9 +31,10 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32MultiArray
 
-from vla_inference.vla_inference.config.vla_inference_config import (
+from vla_inference.config.vla_inference_config import (
     STD_VLA_CFG,
     InferenceMethod,
+    VlaInferenceConfig,
 )
 
 
@@ -76,7 +77,6 @@ class VlaInferenceNode(Node):
         self.declare_parameter("dataset_num_episodes",  self._cfg.dataset_num_episodes)
         self.declare_parameter("push_to_hub",           self._cfg.push_to_hub)
         self.declare_parameter("enable_gaze_input",     self._cfg.enable_gaze_input)
-        self.declare_parameter("gaze_topic_name",       self._cfg.gaze_topic_name)
         self.declare_parameter("policy_server_host",    self._cfg.policy_server_host)
         self.declare_parameter("policy_server_port",    self._cfg.policy_server_port)
         self.declare_parameter("actions_per_chunk",     self._cfg.actions_per_chunk)
@@ -196,7 +196,6 @@ class VlaInferenceNode(Node):
         num_episodes   = self.get_parameter("dataset_num_episodes").value
         push_to_hub    = str(self.get_parameter("push_to_hub").value).lower()
         enable_gaze    = self.get_parameter("enable_gaze_input").value
-        gaze_topic     = self.get_parameter("gaze_topic_name").value
         single_task    = task
 
         args = [
@@ -217,7 +216,7 @@ class VlaInferenceNode(Node):
         if enable_gaze:
             args += [
                 f"--robot.ros2_interface.enable_gaze_input=true",
-                f"--robot.ros2_interface.gaze_topic_name={gaze_topic}",
+                f"--robot.ros2_interface.gaze_topic_name={self._cfg.topic_gaze_coords}",
                 f"--robot.ros2_interface.gaze_default_x={gaze_x}",
                 f"--robot.ros2_interface.gaze_default_y={gaze_y}",
             ]

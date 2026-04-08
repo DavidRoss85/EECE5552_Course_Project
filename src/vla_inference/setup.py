@@ -24,7 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'vla_inference_node = vla_inference.vla_inference_node:main',
+            'vla_inference_node = vla_inference.nodes.vla_inference_node:main',
         ],
     },
 )
