@@ -6,11 +6,19 @@ This file owns only VLA-specific non-topic config:
   - inference method selector
   - LeRobot model / robot / camera parameters
   - async PolicyServer parameters
+  - flexible argument injection for custom lerobot flags
+
+IMPORTANT FOR TEAMMATES:
+- Update camera configs to match your setup
+- Change policy_path to point to your model checkpoints
+- Modify dataset_repo_id and dataset_root for your experiments
+- Add custom lerobot arguments via extra_lerobot_args
 """
 
 from dataclasses import dataclass
 from enum import Enum
 import os
+from typing import List
 
 from robot_common.ros_config import STD_CFG as ROS_CFG
 
@@ -43,21 +51,54 @@ class InferenceMethod(str, Enum):
 
 
 # ---------------------------------------------------------------------------
-# LeRobot / camera defaults
+# Camera configuration templates
 # ---------------------------------------------------------------------------
 
-_DEFAULT_CAMERA_CFG = (
-    "{ top: {type: opencv, index_or_path: 'ros:///cameras/front/image_raw', "
-    "width: 640, height: 480, fps: 15 }, "
-    "side: {type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 15 }, "
-    "gripper: {type: opencv, index_or_path: /dev/video1, width: 640, height: 480, fps: 15 } }"
+# Template matching teammate's current setup (3 cameras: top, side, front)
+_CAMERA_CFG_3CAM = (
+    f"{{ top: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_top}', "
+    f"width: 640, height: 480, fps: 30 }}, "
+    f"side: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_side}', "
+    f"width: 640, height: 480, fps: 30 }}, "
+    f"front: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_front}', "
+    f"width: 640, height: 480, fps: 30 }} }}"
 )
 
-_DEFAULT_POLICY_PATH = os.path.join(
+# Original configuration (with gripper cam) 
+_CAMERA_CFG_WITH_GRIPPER = (
+    f"{{ top: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_top}', "
+    f"width: 640, height: 480, fps: 15 }}, "
+    f"side: {{type: opencv, index_or_path: /dev/video0, width: 640, height: 480, fps: 15 }}, "
+    f"gripper: {{type: opencv, index_or_path: /dev/video1, width: 640, height: 480, fps: 15 }} }}"
+)
+
+# Minimal single camera setup
+_CAMERA_CFG_SINGLE = (
+    f"{{ top: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_top}', "
+    f"width: 640, height: 480, fps: 30 }} }}"
+)
+
+
+# ---------------------------------------------------------------------------
+# Policy path templates
+# ---------------------------------------------------------------------------
+
+# Teammate's current model path structure
+_POLICY_PATH_50K = os.path.join(
     os.path.expanduser("~"),
     "GitHub/EECE5552_Course_Project/outputs/train/"
-    "smolvla_ur12e_gaze_with_gripper/checkpoints/025000/pretrained_model",
+    "smolvla_ur12e_test/checkpoints/050000/pretrained_model"
 )
+
+# Original 25K checkpoint
+_POLICY_PATH_25K = os.path.join(
+    os.path.expanduser("~"),
+    "GitHub/EECE5552_Course_Project/outputs/train/"
+    "smolvla_ur12e_gaze_with_gripper/checkpoints/025000/pretrained_model"
+)
+
+# Base model fallback
+_POLICY_PATH_BASE = "lerobot/smolvla_base"
 
 
 # ---------------------------------------------------------------------------
@@ -78,18 +119,34 @@ class VlaInferenceConfig:
     inference_method:   str = InferenceMethod.SUBPROCESS
 
     # ── LeRobot / model config ───────────────────────────────────────────────
-    policy_path:        str = _DEFAULT_POLICY_PATH
+    # TEAMMATE: Update this to match your current model checkpoint
+    policy_path:        str = _POLICY_PATH_50K
     policy_device:      str = "cuda"
     lerobot_cmd:        str = "lerobot-record"      # or "lerobot-eval"
     robot_type:         str = "ur12e_ros"
     robot_id:           str = "ur12e"
-    camera_cfg:         str = _DEFAULT_CAMERA_CFG
-    dataset_repo_id:    str = "frazier-z/eval_ur12e_gaze_with_gripper"
-    dataset_root:       str = "eval_ur12e_gaze_with_gripper"
-    dataset_fps:        int = 15
+    
+    # TEAMMATE: Choose camera config that matches your setup
+    # Options: _CAMERA_CFG_3CAM, _CAMERA_CFG_WITH_GRIPPER, _CAMERA_CFG_SINGLE
+    camera_cfg:         str = _CAMERA_CFG_3CAM
+    
+    # TEAMMATE: Update dataset settings for your experiments
+    dataset_repo_id:    str = "frazier-z/eval_ur12e"
+    dataset_root:       str = "eval_smolvla"
+    dataset_fps:        int = 30    # Updated to match teammate's script
     dataset_num_episodes: int = 1
     push_to_hub:        bool = False
+    
+    # Default task (can be overridden by orchestrator command)
+    default_task:       str = "pick up imaginary block"
+    
+    # ── Gaze input settings ──────────────────────────────────────────────────
     enable_gaze_input:  bool = True
+
+    # ── Custom lerobot arguments ─────────────────────────────────────────────
+    # TEAMMATE: Add any custom flags here, e.g. ["--myshirt.is=green", "--debug=true"]
+    # These will be appended to the lerobot command exactly as written
+    extra_lerobot_args: List[str] = None
 
     # ── Async PolicyServer config (methods 2 & 3) ────────────────────────────
     policy_server_host:     str   = "127.0.0.1"
@@ -98,5 +155,59 @@ class VlaInferenceConfig:
     chunk_size_threshold:   float = 0.5
     episode_time_s:         int   = 30
 
+    def __post_init__(self):
+        """Set default extra_lerobot_args if not provided."""
+        if self.extra_lerobot_args is None:
+            # Default to empty list - no extra arguments
+            object.__setattr__(self, 'extra_lerobot_args', [])
 
-STD_VLA_CFG = VlaInferenceConfig()
+
+# ---------------------------------------------------------------------------
+# Configuration presets for different use cases
+# ---------------------------------------------------------------------------
+
+# Current teammate setup (50K checkpoint, 3 cameras, 30fps)
+TEAMMATE_CURRENT_CFG = VlaInferenceConfig(
+    policy_path=_POLICY_PATH_50K,
+    camera_cfg=_CAMERA_CFG_3CAM,
+    dataset_repo_id="frazier-z/eval_ur12e",
+    dataset_root="eval_smolvla",
+    dataset_fps=30,
+    default_task="pick up imaginary block"
+)
+
+# Gaze-enabled setup (25K checkpoint with gaze)
+GAZE_ENABLED_CFG = VlaInferenceConfig(
+    policy_path=_POLICY_PATH_25K,
+    camera_cfg=_CAMERA_CFG_WITH_GRIPPER,
+    dataset_repo_id="frazier-z/eval_ur12e_gaze_with_gripper",
+    dataset_root="eval_ur12e_gaze_with_gripper",
+    dataset_fps=15,
+    enable_gaze_input=True,
+    default_task="grab target block"
+)
+
+# Base model fallback (use HuggingFace hosted model)
+BASE_MODEL_CFG = VlaInferenceConfig(
+    policy_path=_POLICY_PATH_BASE,
+    camera_cfg=_CAMERA_CFG_SINGLE,
+    dataset_repo_id="test/eval_base",
+    dataset_root="eval_base",
+    dataset_fps=15,
+    default_task="pick up object"
+)
+
+# Example with custom arguments
+CUSTOM_ARGS_CFG = VlaInferenceConfig(
+    policy_path=_POLICY_PATH_50K,
+    camera_cfg=_CAMERA_CFG_3CAM,
+    extra_lerobot_args=[
+        "--robot.max_episode_steps=100",
+        "--policy.temperature=0.1", 
+        "--dataset.video_backend=imageio",
+        # Add any custom flags your teammate needs here
+    ]
+)
+
+# Default configuration (use teammate's current setup)
+STD_VLA_CFG = TEAMMATE_CURRENT_CFG
