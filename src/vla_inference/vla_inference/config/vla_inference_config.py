@@ -54,7 +54,7 @@ class InferenceMethod(str, Enum):
 # Camera configuration templates
 # ---------------------------------------------------------------------------
 
-# Template matching teammate's current setup (3 cameras: top, side, front)
+# Template matching current setup (3 cameras: top, side, front)
 _CAMERA_CFG_3CAM = (
     f"{{ top: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_top}', "
     f"width: 640, height: 480, fps: 30 }}, "
@@ -83,7 +83,7 @@ _CAMERA_CFG_SINGLE = (
 # Policy path templates
 # ---------------------------------------------------------------------------
 
-# Teammate's current model path structure
+# Current model path structure
 _POLICY_PATH_50K = os.path.join(
     os.path.expanduser("~"),
     "GitHub/EECE5552_Course_Project/outputs/train/"
@@ -119,21 +119,21 @@ class VlaInferenceConfig:
     inference_method:   str = InferenceMethod.SUBPROCESS
 
     # ── LeRobot / model config ───────────────────────────────────────────────
-    # TEAMMATE: Update this to match your current model checkpoint
+    # Update this to match your current model checkpoint
     policy_path:        str = _POLICY_PATH_50K
     policy_device:      str = "cuda"
     lerobot_cmd:        str = "lerobot-record"      # or "lerobot-eval"
     robot_type:         str = "ur12e_ros"
     robot_id:           str = "ur12e"
     
-    # TEAMMATE: Choose camera config that matches your setup
+    # Choose camera config that matches your setup
     # Options: _CAMERA_CFG_3CAM, _CAMERA_CFG_WITH_GRIPPER, _CAMERA_CFG_SINGLE
     camera_cfg:         str = _CAMERA_CFG_3CAM
     
-    # TEAMMATE: Update dataset settings for your experiments
+    # Update dataset settings for your experiments
     dataset_repo_id:    str = "frazier-z/eval_ur12e"
     dataset_root:       str = "eval_smolvla"
-    dataset_fps:        int = 30    # Updated to match teammate's script
+    dataset_fps:        int = 30    # Updated to match script
     dataset_num_episodes: int = 1
     push_to_hub:        bool = False
     
@@ -144,10 +144,13 @@ class VlaInferenceConfig:
     enable_gaze_input:  bool = True
 
     # ── Custom lerobot arguments ─────────────────────────────────────────────
-    # TEAMMATE: Add any custom flags here, e.g. ["--myshirt.is=green", "--debug=true"]
+    # Add any custom flags here, e.g. ["--myshirt.is=green", "--debug=true"]
     # These will be appended to the lerobot command exactly as written
     extra_lerobot_args: List[str] = None
 
+    # THESE SETTINGS ARE PRIMARILY FOR POLICY_SERVER METHODS 2 & 3, 
+    # WHICH HAVE NOT BEEN FULLY IMPLEMENTED OR TESTED YET. 
+    # TUNE THESE IF YOU PLAN TO USE THOSE METHODS.
     # ── Async PolicyServer config (methods 2 & 3) ────────────────────────────
     policy_server_host:     str   = "127.0.0.1"
     policy_server_port:     int   = 8080
@@ -166,8 +169,8 @@ class VlaInferenceConfig:
 # Configuration presets for different use cases
 # ---------------------------------------------------------------------------
 
-# Current teammate setup (50K checkpoint, 3 cameras, 30fps)
-TEAMMATE_CURRENT_CFG = VlaInferenceConfig(
+# Current setup (50K checkpoint, 3 cameras, 30fps)
+GENERAL_CURRENT_CFG = VlaInferenceConfig(
     policy_path=_POLICY_PATH_50K,
     camera_cfg=_CAMERA_CFG_3CAM,
     dataset_repo_id="frazier-z/eval_ur12e",
@@ -205,9 +208,9 @@ CUSTOM_ARGS_CFG = VlaInferenceConfig(
         "--robot.max_episode_steps=100",
         "--policy.temperature=0.1", 
         "--dataset.video_backend=imageio",
-        # Add any custom flags your teammate needs here
+        # Add any custom flags you needs here
     ]
 )
 
-# Default configuration (use teammate's current setup)
-STD_VLA_CFG = TEAMMATE_CURRENT_CFG
+# Default configuration (use your current setup)
+STD_VLA_CFG = GENERAL_CURRENT_CFG

@@ -181,7 +181,7 @@ class VlaInferenceNode(Node):
         Builds the lerobot-record (or lerobot-eval) CLI command and runs it
         as a child process.  Blocks until the process exits.
 
-        This mirrors your teammate's manual eval command exactly, but with
+        This mirrors your manual eval command exactly, but with
         gaze_x / gaze_y injected dynamically from the orchestrator command.
         """
         cmd = self.get_parameter("lerobot_cmd").value
