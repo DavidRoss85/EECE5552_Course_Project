@@ -32,7 +32,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32MultiArray
 
-from vla_inference.config.ros_presets import (
+from vla_inference.config.vla_inference_config import (
     STD_VLA_CFG,
     InferenceMethod,
     VlaInferenceConfig,
