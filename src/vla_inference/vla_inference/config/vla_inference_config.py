@@ -20,7 +20,7 @@ from enum import Enum
 import os
 from typing import List
 
-from robot_common.ros_config import STD_CFG as ROS_CFG
+from robot_common.config.ros_config import STD_CFG as ROS_CFG
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +35,10 @@ class InferenceMethod(str, Enum):
                             child process and waits for it to exit.
                             Simple, no API integration required.
 
+    BASH_SCRIPT           — Executes a saved bash script directly.
+                            Useful when teammate has complex setup scripts
+                            with environment variables and custom logic.
+
     POLICY_SERVER_RELAY   — Spins up a PolicyServer, connects a relay
                             RobotClient that captures action vectors and
                             republishes them to /vla/action_output.
@@ -46,6 +50,7 @@ class InferenceMethod(str, Enum):
                             publishes a DONE status when the episode ends.
     """
     SUBPROCESS            = "subprocess"
+    BASH_SCRIPT           = "bash_script"
     POLICY_SERVER_RELAY   = "policy_server_relay"
     POLICY_SERVER_DIRECT  = "policy_server_direct"
 
@@ -54,7 +59,7 @@ class InferenceMethod(str, Enum):
 # Camera configuration templates
 # ---------------------------------------------------------------------------
 
-# Template matching current setup (3 cameras: top, side, front)
+# Template matching teammate's current setup (3 cameras: top, side, front)
 _CAMERA_CFG_3CAM = (
     f"{{ top: {{type: opencv, index_or_path: 'ros://{ROS_CFG.topic_camera_top}', "
     f"width: 640, height: 480, fps: 30 }}, "
@@ -83,7 +88,7 @@ _CAMERA_CFG_SINGLE = (
 # Policy path templates
 # ---------------------------------------------------------------------------
 
-# Current model path structure
+# Teammate's current model path structure
 _POLICY_PATH_50K = os.path.join(
     os.path.expanduser("~"),
     "GitHub/EECE5552_Course_Project/outputs/train/"
@@ -95,6 +100,13 @@ _POLICY_PATH_25K = os.path.join(
     os.path.expanduser("~"),
     "GitHub/EECE5552_Course_Project/outputs/train/"
     "smolvla_ur12e_gaze_with_gripper/checkpoints/025000/pretrained_model"
+)
+
+# ACT model for simulation (teammate's latest)
+_POLICY_PATH_ACT_SIM = os.path.join(
+    os.path.expanduser("~"),
+    "GitHub/EECE5552_Course_Project/outputs/train/"
+    "act_ur12e_sim/checkpoints/001000/pretrained_model"
 )
 
 # Base model fallback
@@ -119,21 +131,31 @@ class VlaInferenceConfig:
     inference_method:   str = InferenceMethod.SUBPROCESS
 
     # ── LeRobot / model config ───────────────────────────────────────────────
-    # Update this to match your current model checkpoint
+    # TEAMMATE: Update this to match your current model checkpoint
     policy_path:        str = _POLICY_PATH_50K
     policy_device:      str = "cuda"
     lerobot_cmd:        str = "lerobot-record"      # or "lerobot-eval"
     robot_type:         str = "ur12e_ros"
     robot_id:           str = "ur12e"
     
-    # Choose camera config that matches your setup
+    # ── Bash script mode settings ────────────────────────────────────────────
+    # TEAMMATE: Set this to your saved script path for BASH_SCRIPT mode
+    bash_script_path:   str = os.path.join(
+        os.path.expanduser("~"),
+        "GitHub/EECE5552_Course_Project/scripts/start-smolvla.sh"
+    )
+    # Script arguments that get passed to your bash script
+    # The orchestrator will pass gaze coordinates as $1 and $2
+    bash_script_args:   List[str] = None  # Additional args like ["--debug", "mode=sim"]
+    
+    # TEAMMATE: Choose camera config that matches your setup
     # Options: _CAMERA_CFG_3CAM, _CAMERA_CFG_WITH_GRIPPER, _CAMERA_CFG_SINGLE
     camera_cfg:         str = _CAMERA_CFG_3CAM
     
-    # Update dataset settings for your experiments
+    # TEAMMATE: Update dataset settings for your experiments
     dataset_repo_id:    str = "frazier-z/eval_ur12e"
     dataset_root:       str = "eval_smolvla"
-    dataset_fps:        int = 30    # Updated to match script
+    dataset_fps:        int = 30    # Updated to match teammate's script
     dataset_num_episodes: int = 1
     push_to_hub:        bool = False
     
@@ -144,33 +166,36 @@ class VlaInferenceConfig:
     enable_gaze_input:  bool = True
 
     # ── Custom lerobot arguments ─────────────────────────────────────────────
-    # Add any custom flags here, e.g. ["--myshirt.is=green", "--debug=true"]
+    # TEAMMATE: Add any custom flags here, e.g. ["--myshirt.is=green", "--debug=true"]
     # These will be appended to the lerobot command exactly as written
     extra_lerobot_args: List[str] = None
+    
+    # ── Episode and timing settings ──────────────────────────────────────────
+    episode_time_s:     int   = 30      # Max episode duration in seconds
+    resume_dataset:     bool  = False   # --resume flag for continuing existing datasets
 
-    # THESE SETTINGS ARE PRIMARILY FOR POLICY_SERVER METHODS 2 & 3, 
-    # WHICH HAVE NOT BEEN FULLY IMPLEMENTED OR TESTED YET. 
-    # TUNE THESE IF YOU PLAN TO USE THOSE METHODS.
     # ── Async PolicyServer config (methods 2 & 3) ────────────────────────────
     policy_server_host:     str   = "127.0.0.1"
     policy_server_port:     int   = 8080
     actions_per_chunk:      int   = 50
     chunk_size_threshold:   float = 0.5
-    episode_time_s:         int   = 30
 
     def __post_init__(self):
-        """Set default extra_lerobot_args if not provided."""
+        """Set default values for optional lists if not provided."""
         if self.extra_lerobot_args is None:
             # Default to empty list - no extra arguments
             object.__setattr__(self, 'extra_lerobot_args', [])
+        if self.bash_script_args is None:
+            # Default to empty list - no extra script arguments
+            object.__setattr__(self, 'bash_script_args', [])
 
 
 # ---------------------------------------------------------------------------
 # Configuration presets for different use cases
 # ---------------------------------------------------------------------------
 
-# Current setup (50K checkpoint, 3 cameras, 30fps)
-GENERAL_CURRENT_CFG = VlaInferenceConfig(
+# Current teammate setup (50K checkpoint, 3 cameras, 30fps)
+TEAMMATE_CURRENT_CFG = VlaInferenceConfig(
     policy_path=_POLICY_PATH_50K,
     camera_cfg=_CAMERA_CFG_3CAM,
     dataset_repo_id="frazier-z/eval_ur12e",
@@ -190,6 +215,25 @@ GAZE_ENABLED_CFG = VlaInferenceConfig(
     default_task="grab target block"
 )
 
+# ACT model for simulation (teammate's latest)
+ACT_SIM_CFG = VlaInferenceConfig(
+    policy_path=_POLICY_PATH_ACT_SIM,
+    camera_cfg=_CAMERA_CFG_3CAM,
+    dataset_repo_id="frazier-z/eval_act_ur12e_sim",
+    dataset_root=os.path.join(
+        os.path.expanduser("~"),
+        "GitHub/EECE5552_Course_Project/eval_datasets/eval_act_ur12e_sim"
+    ),
+    dataset_fps=30,
+    episode_time_s=120,  # 2 minutes per episode
+    enable_gaze_input=False,  # ACT model doesn't use gaze
+    default_task="grab target block",
+    resume_dataset=True,  # Will be dynamically determined
+    extra_lerobot_args=[
+        "--robot.ros2_interface.gripper_joint_name="  # Empty gripper joint name
+    ]
+)
+
 # Base model fallback (use HuggingFace hosted model)
 BASE_MODEL_CFG = VlaInferenceConfig(
     policy_path=_POLICY_PATH_BASE,
@@ -200,6 +244,18 @@ BASE_MODEL_CFG = VlaInferenceConfig(
     default_task="pick up object"
 )
 
+# Script-based execution (teammate's bash scripts)
+BASH_SCRIPT_CFG = VlaInferenceConfig(
+    inference_method=InferenceMethod.BASH_SCRIPT,
+    bash_script_path=os.path.join(
+        os.path.expanduser("~"),
+        "GitHub/EECE5552_Course_Project/scripts/eval-act-sim.sh"
+    ),
+    bash_script_args=[],  # Additional arguments if needed
+    enable_gaze_input=False,  # Script handles its own gaze logic
+    default_task="grab target block"
+)
+
 # Example with custom arguments
 CUSTOM_ARGS_CFG = VlaInferenceConfig(
     policy_path=_POLICY_PATH_50K,
@@ -208,9 +264,9 @@ CUSTOM_ARGS_CFG = VlaInferenceConfig(
         "--robot.max_episode_steps=100",
         "--policy.temperature=0.1", 
         "--dataset.video_backend=imageio",
-        # Add any custom flags you needs here
+        # Add any custom flags your teammate needs here
     ]
 )
 
-# Default configuration (use your current setup)
-STD_VLA_CFG = GENERAL_CURRENT_CFG
+# Default configuration (use teammate's current setup)
+STD_VLA_CFG = BASH_SCRIPT_CFG
