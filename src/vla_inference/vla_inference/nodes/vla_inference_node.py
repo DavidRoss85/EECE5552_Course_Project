@@ -24,6 +24,7 @@ Status messages published to /vla/status:
 """
 
 import json
+import os
 import subprocess
 import threading
 
@@ -31,7 +32,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32MultiArray
 
-from vla_inference.config.vla_inference_config import (
+from vla_inference.config.ros_presets import (
     STD_VLA_CFG,
     InferenceMethod,
     VlaInferenceConfig,
@@ -81,7 +82,12 @@ class VlaInferenceNode(Node):
         self.declare_parameter("policy_server_port",    self._cfg.policy_server_port)
         self.declare_parameter("actions_per_chunk",     self._cfg.actions_per_chunk)
         self.declare_parameter("chunk_size_threshold",  self._cfg.chunk_size_threshold)
+        self.declare_parameter("bash_script_path",      self._cfg.bash_script_path)
+        self.declare_parameter("bash_script_args",      self._cfg.bash_script_args)
         self.declare_parameter("episode_time_s",        self._cfg.episode_time_s)
+        self.declare_parameter("resume_dataset",        self._cfg.resume_dataset)
+        self.declare_parameter("extra_lerobot_args",    self._cfg.extra_lerobot_args)
+        self.declare_parameter("default_task",          self._cfg.default_task)
 
         self._method = self.get_parameter("inference_method").value
         self.get_logger().info(f"Inference method: {self._method}")
@@ -130,7 +136,7 @@ class VlaInferenceNode(Node):
         target = data.get("target", {})
         gaze_x = float(target.get("x", 0.0))
         gaze_y = float(target.get("y", 0.0))
-        task   = data.get("command", "grab target block")
+        task   = data.get("command", self.get_parameter("default_task").value)
 
         self._busy = True
         self._publish_status(VlaStatus.RUNNING)
@@ -150,6 +156,9 @@ class VlaInferenceNode(Node):
         try:
             if self._method == InferenceMethod.SUBPROCESS:
                 self._run_subprocess(task, gaze_x, gaze_y)
+
+            elif self._method == InferenceMethod.BASH_SCRIPT:
+                self._run_bash_script(task, gaze_x, gaze_y)
 
             elif self._method == InferenceMethod.POLICY_SERVER_RELAY:
                 self._run_policy_server_relay(task, gaze_x, gaze_y)
@@ -181,7 +190,7 @@ class VlaInferenceNode(Node):
         Builds the lerobot-record (or lerobot-eval) CLI command and runs it
         as a child process.  Blocks until the process exits.
 
-        This mirrors your manual eval command exactly, but with
+        This mirrors your teammate's manual eval command exactly, but with
         gaze_x / gaze_y injected dynamically from the orchestrator command.
         """
         cmd = self.get_parameter("lerobot_cmd").value
@@ -196,6 +205,8 @@ class VlaInferenceNode(Node):
         num_episodes   = self.get_parameter("dataset_num_episodes").value
         push_to_hub    = str(self.get_parameter("push_to_hub").value).lower()
         enable_gaze    = self.get_parameter("enable_gaze_input").value
+        episode_time_s = self.get_parameter("episode_time_s").value
+        resume_dataset = str(self.get_parameter("resume_dataset").value).lower()
         single_task    = task
 
         args = [
@@ -211,6 +222,8 @@ class VlaInferenceNode(Node):
             f"--policy.path={policy_path}",
             f"--dataset.push_to_hub={push_to_hub}",
             f"--dataset.fps={fps}",
+            f"--dataset.episode_time_s={episode_time_s}",
+            f"--resume={resume_dataset}",
         ]
 
         if enable_gaze:
@@ -220,6 +233,12 @@ class VlaInferenceNode(Node):
                 f"--robot.ros2_interface.gaze_default_x={gaze_x}",
                 f"--robot.ros2_interface.gaze_default_y={gaze_y}",
             ]
+
+        # Add any extra custom arguments
+        extra_args = self.get_parameter("extra_lerobot_args").value
+        if extra_args:
+            args.extend(extra_args)
+            self.get_logger().info(f"Added extra arguments: {extra_args}")
 
         self.get_logger().info(f"Launching subprocess: {' '.join(args)}")
 
@@ -243,6 +262,67 @@ class VlaInferenceNode(Node):
                 f"lerobot subprocess exited with return code {rc}")
 
         self.get_logger().info("Subprocess episode complete.")
+
+    # =========================================================================
+    # Method 1b — Bash Script
+    # =========================================================================
+
+    def _run_bash_script(self, task: str, gaze_x: float, gaze_y: float):
+        """
+        Executes a saved bash script directly.
+        
+        This is useful when the teammate has complex setup scripts with
+        environment variables, conditional logic, or custom preprocessing.
+        
+        The script receives gaze coordinates as $1 and $2, and can handle
+        its own argument processing and lerobot invocation.
+        """
+        script_path = self.get_parameter("bash_script_path").value
+        extra_args = self.get_parameter("bash_script_args").value
+        
+        # Check if script exists and is executable
+        if not os.path.isfile(script_path):
+            raise FileNotFoundError(f"Bash script not found: {script_path}")
+        
+        if not os.access(script_path, os.X_OK):
+            self.get_logger().warn(f"Script may not be executable: {script_path}")
+        
+        # Build command: script_path gaze_x gaze_y [extra_args...]
+        args = ["/bin/bash", script_path, str(gaze_x), str(gaze_y)]
+        if extra_args:
+            args.extend(extra_args)
+        
+        # Set environment variables that the script might need
+        env = os.environ.copy()
+        env['VLA_TASK'] = task
+        env['VLA_GAZE_X'] = str(gaze_x)
+        env['VLA_GAZE_Y'] = str(gaze_y)
+        
+        self.get_logger().info(f"Executing bash script: {script_path}")
+        self.get_logger().info(f"Script arguments: gaze_x={gaze_x}, gaze_y={gaze_y}")
+        self.get_logger().info(f"Task environment variable: VLA_TASK={task}")
+
+        self._active_proc = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env=env,
+            cwd=os.path.dirname(script_path)  # Run from script's directory
+        )
+
+        # Stream stdout to the ROS logger
+        for line in self._active_proc.stdout:
+            self.get_logger().info(f"[script] {line.rstrip()}")
+
+        self._active_proc.wait()
+        rc = self._active_proc.returncode
+        self._active_proc = None
+
+        if rc != 0:
+            raise RuntimeError(f"Bash script exited with return code {rc}")
+
+        self.get_logger().info("Bash script episode complete.")
 
     # =========================================================================
     # Method 2 — PolicyServer + relay RobotClient
