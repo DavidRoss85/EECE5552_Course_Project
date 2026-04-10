@@ -1,0 +1,80 @@
+# ======================================================================
+# Test Configuration for Robot Vision-Grasp System
+# ======================================================================
+# Minimal configuration for testing the system without physical hardware.
+# Uses synthetic data and mock nodes where possible.
+
+# ROS2 parameter file format - each node has its own section
+
+# ── Intent Selection Tester Node ─────────────────────────────────────
+intent_selection_tester:
+  ros__parameters:
+    # Synthetic data settings
+    image_width: 1280
+    image_height: 720
+    gaze_speed: 0.5
+    command_interval: 8.0
+    publish_camera: true
+    
+    # ROS topics
+    gaze_topic: '/input/eye_gaze/coords'
+    calibration_topic: '/input/eye_gaze/calibration'
+    detections_topic: '/intent_selection/detections'
+    voice_commands_topic: '/intent_selection/text_commands'
+    camera_topic: '/input/camera_feed/rgb/full_view'
+    max_messages: 10
+
+# ── Intent Selection Node ────────────────────────────────────────────
+intent_selection_node:
+  ros__parameters:
+    # Camera configuration
+    camera_source: 'topic'
+    camera_device: '/dev/video2'
+    image_width: 1280
+    image_height: 720
+    frame_rate: 30
+    
+    # Display settings
+    display_fullscreen: false
+    window_width: 800
+    window_height: 600
+    gaze_proximity_threshold: 100.0
+    
+    # ROS topics
+    camera_topic: '/input/camera_feed/rgb/full_view'
+    gaze_topic: '/input/eye_gaze/coords'
+    calibration_topic: '/input/eye_gaze/calibration'
+    detections_topic: '/intent_selection/detections'
+    voice_commands_topic: '/intent_selection/text_commands'
+    vla_input_topic: '/vla/input'
+    intention_output_topic: '/intent_selection/intention_output'
+    max_messages: 10
+
+# ── Orchestrator Node ────────────────────────────────────────────────
+orchestrator_node:
+  ros__parameters:
+    # Fast timing for testing
+    auto_handoff: true
+    handoff_timeout_s: 5.0
+    home_timeout_s: 3.0
+    
+    # Test gripper settings
+    gripper_open_pos: 1.0
+    gripper_closed_pos: 0.0
+    
+    # ROS topics
+    intention_topic: '/intent_selection/intention_output'
+    vla_status_topic: '/vla/status'
+    vla_input_topic: '/vla/input'
+    orchestrator_state_topic: '/orchestrator/state'
+    gripper_topic: '/gripper_position'
+    goal_pose_topic: '/goal_pose'
+    max_messages: 10
+
+# ── Test and Debug Settings ──────────────────────────────────────────
+# Global settings that might be used by multiple nodes
+/**:
+  ros__parameters:
+    test_mode: true
+    debug_output: true
+    log_level: 'INFO'
