@@ -1,0 +1,210 @@
+# ======================================================================
+# Robot Vision-Grasp System Configuration
+# ======================================================================
+# This file contains all configurable parameters for the complete system.
+# Modify these values to match your hardware setup and requirements.
+
+# ROS2 parameter file format - each node has its own section
+
+# ── Gaze Tracking Node ───────────────────────────────────────────────
+gaze_tracking_node:
+  ros__parameters:
+    # Core functionality
+    input_mode: 'device'                # 'device', 'topic', or 'dummy'
+    camera_device: '/dev/video0'        # Camera device for eye tracking
+    env_image_width: 600                # Environment image width
+    env_image_height: 500               # Environment image height
+    calib_points: 25                    # Number of calibration points
+    test_mode: false                    # Use sinusoidal test gaze instead of camera
+    
+    # Display settings
+    show_feed: true                     # Display camera feed window
+    show_fullscreen: false              # Show feed in fullscreen mode
+    mirror_x: false                     # Mirror X coordinates for non-mirrored cameras
+    use_calib_map: false                # Use custom calibration map
+    
+    # ROS topics
+    eye_gaze_topic: '/input/eye_gaze/coords'
+    eye_gaze_calibration_topic: '/input/eye_gaze/calibration'
+    max_ros_messages: 10
+
+# ── Object Detection Node ────────────────────────────────────────────
+detection_node:
+  ros__parameters:
+    # YOLO model settings
+    yolo_model: 'yolov8m.pt'            # YOLO model: yolov8n.pt, yolov8s.pt, yolov8m.pt
+    confidence_threshold: 0.8           # Confidence threshold for detections
+    compute_preference: 'max_throughput' # 'cpu_only', 'accelerate_if_available', 'max_throughput', 'throttled'
+    filter_mode: 'all'                  # 'all', 'allow', 'reject'
+    
+    # Display settings
+    show_feed: false                    # Display detection results
+    line_thickness: 2                   # Bounding box line thickness
+    font_scale: 0.5                     # Label font scale
+    
+    # ROS topics
+    camera_topic: '/input/camera_feed/rgb/object_view'
+    detections_topic: '/intent_selection/detections'
+    max_messages: 10
+
+# ── Voice Command Node ───────────────────────────────────────────────
+voice_command_node:
+  ros__parameters:
+    # Voice processing settings
+    use_local_whisper: true             # Use local faster-whisper vs OpenAI API
+    local_whisper_model: 'base.en'      # Local Whisper model: tiny.en, base.en, small.en, medium.en
+    openai_api_key: ''                  # OpenAI API key (if not using local Whisper)
+    llm_parse: false                    # Use GPT to parse commands into structured JSON
+    llm_model: 'gpt-4o-mini'            # LLM model for command parsing
+    
+    # ROS topics
+    output_topic: '/intent_selection/text_commands'
+    max_messages: 10
+
+# ── Intent Selection Node ────────────────────────────────────────────
+intent_selection_node:
+  ros__parameters:
+    # Camera configuration
+    camera_source: 'device'             # 'device' or 'topic'
+    camera_device: '/dev/video2'        # Camera device for intent selection display
+    image_width: 600                    # Display image width
+    image_height: 500                   # Display image height
+    frame_rate: 30                      # Display frame rate
+    
+    # Display settings
+    display_fullscreen: false           # Start in fullscreen mode
+    window_width: 600                   # Window width (when not fullscreen)
+    window_height: 500                  # Window height (when not fullscreen)
+    gaze_proximity_threshold: 50.0      # Gaze proximity threshold for object selection (pixels)
+    
+    # ROS topics
+    camera_topic: '/input/camera_feed/rgb/full_view'
+    gaze_topic: '/input/eye_gaze/coords'
+    calibration_topic: '/input/eye_gaze/calibration'
+    detections_topic: '/intent_selection/detections'
+    voice_commands_topic: '/intent_selection/text_commands'
+    vla_input_topic: '/vla/input'
+    intention_output_topic: '/intent_selection/intention_output'
+    max_messages: 10
+
+# ── System Orchestrator Node ─────────────────────────────────────────
+orchestrator_node:
+  ros__parameters:
+    # Timing parameters
+    auto_handoff: true                  # Automatically proceed from inference to handoff
+    handoff_timeout_s: 30.0             # Max time for handoff phase (seconds)
+    home_timeout_s: 15.0                # Max time to return home (seconds)
+    
+    # Gripper settings
+    gripper_open_pos: 1.0               # Gripper open command value
+    gripper_closed_pos: 0.0             # Gripper closed command value
+    
+    # ROS topics
+    intention_topic: '/intent_selection/intention_output'
+    vla_status_topic: '/vla/status'
+    vla_input_topic: '/vla/input'
+    orchestrator_state_topic: '/orchestrator/state'
+    gripper_topic: '/gripper_position'
+    goal_pose_topic: '/goal_pose'
+    max_messages: 10
+
+# ── VLA Inference Node ───────────────────────────────────────────────
+vla_inference_node:
+  ros__parameters:
+    # Core inference settings
+    inference_method: 'bash_script'     # 'subprocess', 'bash_script', 'policy_server_relay', 'policy_server_direct'
+    policy_path: '~/GitHub/EECE5552_Course_Project/outputs/train/smolvla_ur12e_test/checkpoints/050000/pretrained_model'
+    policy_device: 'cuda'               # 'cuda' or 'cpu'
+    robot_type: 'ur12e_ros'             # Robot type for LeRobot
+    robot_id: 'ur12e'                   # Robot ID for LeRobot
+    
+    # Subprocess mode settings (when inference_method = 'subprocess')
+    lerobot_cmd: 'lerobot-record'       # 'lerobot-record' or 'lerobot-eval'
+    
+    # Camera configuration (complex YAML string for LeRobot)
+    camera_cfg: |
+      {
+        top: { type: opencv, index_or_path: 'ros:///cameras/top/image_raw', width: 640, height: 480, fps: 30 },
+        side: { type: opencv, index_or_path: 'ros:///cameras/side/image_raw', width: 640, height: 480, fps: 30 },
+        front: { type: opencv, index_or_path: 'ros:///cameras/front/image_raw', width: 640, height: 480, fps: 30 }
+      }
+    
+    # Dataset settings
+    dataset_repo_id: 'frazier-z/eval_ur12e'
+    dataset_root: 'eval_smolvla'
+    dataset_fps: 30
+    dataset_num_episodes: 1
+    push_to_hub: false
+    resume_dataset: false
+    
+    # Bash script mode settings (when inference_method = 'bash_script')
+    bash_script_path: '~/GitHub/EECE5552_Course_Project/scripts/eval-act-sim.sh'
+    bash_script_args: []               # Additional arguments for the bash script
+    
+    # Episode and task settings
+    episode_time_s: 30                  # Maximum episode duration (seconds)
+    enable_gaze_input: true             # Enable gaze input to the VLA
+    default_task: 'pick up imaginary block'  # Default task description
+    
+    # PolicyServer settings (when inference_method includes 'policy_server')
+    policy_server_host: '127.0.0.1'     # PolicyServer host address
+    policy_server_port: 8080            # PolicyServer port
+    actions_per_chunk: 50               # Actions per chunk for batching
+    chunk_size_threshold: 0.5           # Chunk size threshold
+    
+    # Additional LeRobot arguments (list format)
+    extra_lerobot_args: []              # Extra command-line arguments for lerobot
+    
+    # ROS topics
+    command_topic: '/vla/input'
+    status_topic: '/vla/status'
+    action_output_topic: '/vla/action_output'
+    gaze_coords_topic: '/vla/coords'
+    max_messages: 10
+
+# ── Global Settings (applied to all nodes that use wildcard matching) ──
+/**:
+  ros__parameters:
+    # Test and debug settings
+    test_mode: false                    # Enable test mode across all nodes
+    debug_output: false                 # Enable debug logging
+    log_level: 'INFO'                   # ROS log level: DEBUG, INFO, WARN, ERROR
+    
+    # Performance settings
+    node_spin_rate: 30.0               # Default node spin rate (Hz)
+    camera_buffer_size: 1              # Camera buffer size to reduce latency
+    action_timeout: 5.0                # Timeout for individual actions
+    
+    # Safety settings
+    emergency_stop_enabled: true       # Enable emergency stop functionality
+    max_joint_velocity: 0.5            # Maximum joint velocity scaling
+    max_cartesian_velocity: 0.2        # Maximum Cartesian velocity scaling
+    
+    # Network and communication
+    socket_timeout: 1.0                # Socket timeout for robot communication
+    retry_attempts: 3                  # Number of retry attempts for failed operations
+    heartbeat_rate: 1.0                # Heartbeat rate for status monitoring
+
+# ── Hardware Configuration Comments ──────────────────────────────────
+# Update these in the individual node sections above to match your setup:
+#
+# Camera devices:
+#   eye_tracking: '/dev/video0'        # Eye tracking camera
+#   full_view: '/dev/video1'           # Full workspace view camera  
+#   object_view: '/dev/video2'         # Object detection camera
+#   gripper_cam: '/dev/video3'         # Gripper-mounted camera (if used)
+#
+# Robot connection settings:
+#   robot_ip: '10.245.216.50'          # Robot IP address
+#   urscript_port: 30002               # URScript secondary interface port
+#   gripper_port: 63352                # Robotiq gripper socket port
+#
+# Voice commands that trigger different behaviors:
+#   gaze_commands:                     # Commands that require gaze targeting
+#     - 'pick that up'
+#     - 'grab that'
+#     - 'move that'
+#   general_commands:                  # Commands that don't require gaze
+#     - 'go home'
+#     - 'stop'
+#     - 'open gripper'
