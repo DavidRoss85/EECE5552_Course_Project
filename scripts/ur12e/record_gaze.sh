@@ -7,8 +7,8 @@ lerobot-record \
     --dataset.push_to_hub=false \
     --dataset.fps=15 \
     --dataset.num_episodes=5 \
-    --dataset.episode_time_s=45 \
-    --dataset.reset_time_s=30 \
+    --dataset.episode_time_s=60 \
+    --dataset.reset_time_s=60 \
     --dataset.single_task="grab target block" \
     --robot.ros2_interface.enable_gaze_input=true \
     --robot.ros2_interface.gaze_topic_name=/vla/coords \
