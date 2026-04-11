@@ -250,7 +250,7 @@ class IntentSelectionNode(Node):
             
         ret, frame = self._cap.read()
         if not ret:
-            self.get_logger().warn("Failed to capture frame from camera device")
+            # self.get_logger().warn("Failed to capture frame from camera device")
             return
             
         self._current_frame = frame
