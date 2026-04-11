@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'gaze_overlay_node = user_interface.gaze_overlay_node:main',
+            'dwell_vla_node    = user_interface.dwell_vla_node:main',
         ],
     },
 )
