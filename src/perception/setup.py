@@ -33,6 +33,7 @@ setup(
             'detection_node = perception.nodes.detection_node:main',
             'object_localizer_node = perception.nodes.object_localizer_node:main',
             'vla_detector = perception.nodes.vla_detector:main',
+            'vla_detector_multi = perception.nodes.vla_detector_multi:main',
         ],
     },
 )
