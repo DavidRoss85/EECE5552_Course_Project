@@ -164,7 +164,7 @@ def generate_launch_description():
             parameters=[config_file, {
                 # Camera configuration
                 'camera_source': LaunchConfiguration('intent_camera_source', default='device'),
-                'camera_device': LaunchConfiguration('intent_camera_device', default='/dev/video2'),
+                'camera_device': LaunchConfiguration('intent_camera_device', default='/dev/video1'),
                 'image_width': LaunchConfiguration('intent_image_width', default=600),
                 'image_height': LaunchConfiguration('intent_image_height', default=500),
                 'frame_rate': LaunchConfiguration('intent_frame_rate', default=30),
@@ -218,11 +218,7 @@ def generate_launch_description():
         )
         
         # ── VLA Inference Node ───────────────────────────────────────────────
-        vla_node = Node(
-            package='vla_inference',
-            executable='vla_inference_node',
-            name='vla_inference_node',
-            parameters=[config_file, {
+        vla_params = {
                 # Inference method selection
                 'inference_method': LaunchConfiguration('vla_inference_method', default='bash_script'),
                 
@@ -244,9 +240,8 @@ def generate_launch_description():
                 'push_to_hub': LaunchConfiguration('vla_push_to_hub', default='false'),
                 'resume_dataset': LaunchConfiguration('vla_resume_dataset', default='false'),
                 
-                # Bash script settings (for bash_script mode)
-                'bash_script_path': LaunchConfiguration('vla_bash_script_path', default=''),
-                'bash_script_args': LaunchConfiguration('vla_bash_script_args', default=''),
+                # bash_script_args / extra_lerobot_args: never pass from launch (string '' vs string[]).
+                # Optional script path: only override YAML when CLI sets a non-empty vla_bash_script_path.
                 
                 # Episode settings
                 'episode_time_s': LaunchConfiguration('vla_episode_time_s', default=30),
@@ -259,16 +254,22 @@ def generate_launch_description():
                 'actions_per_chunk': LaunchConfiguration('vla_actions_per_chunk', default=50),
                 'chunk_size_threshold': LaunchConfiguration('vla_chunk_threshold', default=0.5),
                 
-                # Additional arguments
-                'extra_lerobot_args': LaunchConfiguration('vla_extra_args', default=''),
-                
                 # ROS topics
                 'command_topic': LaunchConfiguration('topic_vla_input', default='/vla/input'),
                 'status_topic': LaunchConfiguration('topic_vla_status', default='/vla/status'),
                 'action_output_topic': LaunchConfiguration('topic_vla_action_output', default='/vla/action_output'),
                 'gaze_coords_topic': LaunchConfiguration('topic_vla_gaze_coords', default='/vla/coords'),
                 'max_messages': LaunchConfiguration('max_ros_messages', default=10),
-            }],
+        }
+        vla_bash_path = LaunchConfiguration('vla_bash_script_path', default='').perform(context)
+        if vla_bash_path.strip():
+            vla_params['bash_script_path'] = vla_bash_path
+
+        vla_node = Node(
+            package='vla_inference',
+            executable='vla_inference_node',
+            name='vla_inference_node',
+            parameters=[config_file, vla_params],
             condition=IfCondition(LaunchConfiguration('enable_vla')),
             output='screen'
         )

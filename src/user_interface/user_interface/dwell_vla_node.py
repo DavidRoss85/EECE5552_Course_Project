@@ -28,9 +28,9 @@ SCREEN_W = _info.current_w
 SCREEN_H = _info.current_h
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-CALIB_POINTS = 10
+CALIB_POINTS = 25
 CAM_W, CAM_H = 320, 180
-HIT_RADIUS   = 150           # screen-px radius that counts as "hovering"
+HIT_RADIUS   = 200           # screen-px radius that counts as "hovering"
 OUTER_RADIUS = 200           # visual indicator ring radius
 GAZE_ALPHA   = 0.2           # EMA smoothing — lower = smoother
 
@@ -173,7 +173,7 @@ class DwellVlaNode(Node):
         super().__init__('dwell_vla_node')
 
         self.declare_parameter('script_path',   _DEFAULT_SCRIPT)
-        self.declare_parameter('dwell_time',    2.0)
+        self.declare_parameter('dwell_time',    1.0)
         self.declare_parameter('cooldown_time', 5.0)
         self.declare_parameter('eye_cam_index', 0)
 
@@ -224,8 +224,7 @@ class DwellVlaNode(Node):
             return
         self.get_logger().info(f'[DwellVLA] FIRE  {name}  x={raw_cx}  y={raw_cy}')
         self._active_proc = subprocess.Popen(
-            ['bash', self.script, str(raw_cx), str(raw_cy)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            ['bash', self.script, str(raw_cx), str(raw_cy)])
         pt = Point();  pt.x = float(raw_cx);  pt.y = float(raw_cy);  pt.z = 0.0
         self._coords_pub.publish(pt)
         lbl = String();  lbl.data = name

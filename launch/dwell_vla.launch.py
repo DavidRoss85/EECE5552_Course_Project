@@ -19,7 +19,7 @@ def generate_launch_description():
         DeclareLaunchArgument('cooldown_time', default_value='5.0',
                               description='Seconds before the same object can re-trigger'),
         DeclareLaunchArgument('script_path',
-                              default_value='/home/abdulrahman/GitHub/EECE5552_Course_Project/scripts/ur12e/start-act.sh',
+                              default_value='/home/zackary-frazier/GitHub/EECE5552_Course_Project/scripts/ur12e/start-act.sh',
                               description='Absolute path to start-act.sh'),
 
         # ── Scene camera → /cameras/front/image_raw ───────────────────────
