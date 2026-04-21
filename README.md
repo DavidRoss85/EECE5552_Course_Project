@@ -2,6 +2,8 @@
 
 **Primary deliverable — UR12e imitation learning (LeRobot):** record demonstrations on the UR12e (sim or hardware), train policies (e.g. ACT), and run trained checkpoints on the robot. Everything else in the repo supports that pipeline. **New here?** Skim **[Repo map](#repo-map)** (same roles as the comments in `launch/`, `scripts/`, and key `src/` nodes) then **[docs/UR12E_IL_PIPELINE.md](docs/UR12E_IL_PIPELINE.md)**.
 
+<a id="documentation-disclaimer"></a>
+
 **Documentation disclaimer:** Parts of this **README** and of the **`docs/`** tree were written or revised with **AI assistance**. Be mindful that **commands, package names, paths, and explanations can occasionally be wrong or hallucinated**—cross-check against the **source code**, **launch files**, **scripts you actually run**, and **official** [LeRobot](https://huggingface.co/docs/lerobot) / [ROS 2](https://docs.ros.org/en/jazzy/) / [Universal Robots ROS 2](https://docs.universal-robots.com/Universal_Robots_ROS2_Documentation/) documentation before depending on them (especially on **real hardware**). **Regardless of what the docs say, the codebase was left as-is at project completion—`src/`, `launch/`, `lerobot-ros/`, and the checked-in scripts are the source of truth**; treat Markdown as orientation, not a spec.
 
 ---
@@ -178,6 +180,23 @@ ros2 launch launch/teleop.launch.py
 ```
 
 For **LeRobot** recording, use **`teleop_joy_for_lerobot.launch.py`** in Gazebo (publishes `/game_controller`) or the same stack from **`teleop_joy_lerobot_ursim.py`** when using **`ursim_with_joy_teleop.launch.py`** / hardware—the **`ursim` name is historical**; that file is not simulator-only. **`teleop_twist_joy` axis and deadman indices** in those launch files target an **older Xbox-style** pad; expect to edit them and **verify in Gazebo or URSim** before the live robot. See [UR12E_LEROBOT.md](docs/UR12E_LEROBOT.md) (Run → Terminal 2 and gamepad note).
+
+---
+
+## Data, eval runs, and models (Hugging Face)
+
+Published **datasets**, **eval logs**, and **checkpoints** from the course project (see [disclaimer](#documentation-disclaimer)—verify against your local runs).
+
+There is **no `datasets/` or `data/` tree checked into this repository**: raw LeRobot episode data and eval exports are **far too large for GitHub**. The example scripts still use local paths such as `datasets/...` and `eval_datasets/...` on your machine when you **record** or **evaluate**; treat the links below (and your own disk) as where the bulky artifacts actually live.
+
+| Artifact | Link | Notes |
+|----------|------|--------|
+| **Eval dataset (primary)** | [frazier-z/eval_ur12_act](https://huggingface.co/datasets/frazier-z/eval_ur12_act) | Main real-robot eval run; roughly **20–30%** success rate reported (**3 / 13** successes). |
+| **Eval dataset (camera sweep)** | [frazier-z/eval_ur12_act_v2](https://huggingface.co/datasets/frazier-z/eval_ur12_act_v2) | **24** re-evals while tuning camera angles; **no** successes in that series. |
+| **ACT checkpoint (demo)** | [frazier-z/ur12e-act-v2](https://huggingface.co/frazier-z/ur12e-act-v2) | Final **ACT** policy—the one used in the **demo video**. |
+| **SmolVLA checkpoint** | [frazier-z/smolvla_ur12e_gaze_with_gripper_v5](https://huggingface.co/frazier-z/smolvla_ur12e_gaze_with_gripper_v5) | Final **SmolVLA** model (“Mr. Krabs”). |
+| **Diffusion checkpoint** | [frazier-z/ur12e-diffusion](https://huggingface.co/frazier-z/ur12e-diffusion) | Final **diffusion** policy; strong **retry** behavior. |
+| **Training data (videos)** | [ur12e_gaze_with_gripper — top camera chunks](https://huggingface.co/datasets/frazier-z/ur12e_gaze_with_gripper/tree/main/videos/observation.images.top/chunk-000) | **~290**-episode gaze + gripper dataset (observation video branch). |
 
 ---
 
