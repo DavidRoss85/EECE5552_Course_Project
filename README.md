@@ -198,6 +198,17 @@ There is **no `datasets/` or `data/` tree checked into this repository**: raw Le
 | **Diffusion checkpoint** | [frazier-z/ur12e-diffusion](https://huggingface.co/frazier-z/ur12e-diffusion) | Final **diffusion** policy; strong **retry** behavior. |
 | **Training data (videos)** | [ur12e_gaze_with_gripper — top camera chunks](https://huggingface.co/datasets/frazier-z/ur12e_gaze_with_gripper/tree/main/videos/observation.images.top/chunk-000) | **~290**-episode gaze + gripper dataset (observation video branch). |
 
+### Demo videos (local files)
+
+Edited **screen captures** for the write-up (paths are **relative to the repo root**; they resolve when the files exist in your checkout—often **not** on GitHub if you keep binaries local). See [`videos/README.md`](videos/README.md) for the expected names.
+
+| Clip | Local file | What it shows |
+|------|------------|----------------|
+| **ACT (success)** | [`videos/act_combined.mp4`](videos/act_combined.mp4) | Successful **real-robot** eval of the **ACT** policy. |
+| **Diffusion (success + retries)** | [`videos/diffusion_combined_grasp_portion.mp4`](videos/diffusion_combined_grasp_portion.mp4) | Successful **diffusion** eval; highlights the more elaborate **retry** behavior around the grasp. |
+| **SmolVLA (gripper quirk)** | [`videos/smolvla_eval.mp4`](videos/smolvla_eval.mp4) | **SmolVLA** eval: fails to secure the grasp and **cycles the gripper** repeatedly (odd failure mode). |
+| **Sim pipeline validation** | [`videos/simulated_grab.mp4`](videos/simulated_grab.mp4) | **Gazebo** pick-ups recorded while **validating** the ML pipeline in sim. |
+
 ---
 
 ## Documentation
