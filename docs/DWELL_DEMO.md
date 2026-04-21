@@ -46,6 +46,8 @@ That starts three nodes:
 | `vla_detector_multi` | HSV detection for red/blue/yellow, publishes `/vla/coords` + `/vla/detections` + `/vla/preview` |
 | `dwell_vla_node` | EyeGestures v2 calibration + fullscreen pygame UI + fires lerobot on dwell |
 
+**Simpler `/vla/coords` only (no dwell UI):** [`scripts/ur12e/pub_coords.sh`](../scripts/ur12e/pub_coords.sh) runs **`vla_detector`** on **`/cameras/front/image_raw`** for LeRobot gaze scripts—see [README — Repo map](../README.md#repo-map) and [UR12E_IL_PIPELINE — Key nodes…](UR12E_IL_PIPELINE.md#key-nodes-launches-and-helper-scripts).
+
 ---
 
 ## Launch arguments

@@ -5,7 +5,7 @@ This document captures the current UR12e teleop and gripper behavior in this rep
 ## Scope
 
 - ROS 2 Jazzy
-- UR12e via `launch/ursim.launch.py`
+- UR12e via **`launch/ursim_with_joy_teleop.launch.py`** (main entry: driver + teleop) or `launch/ursim.launch.py` (driver only)
 - Joystick teleop via `launch/teleop_joy_lerobot_ursim.py`
 - LeRobot with:
   - `--robot.type=ur12e_ros`
@@ -105,6 +105,10 @@ Behavior details:
   - open -> `SET POS 0`
   - close -> `SET POS 255`
 
+**B button (arm home, same node)** — `B_BUTTON_IDX = 1` runs a **joint-space home trajectory** via `scaled_joint_trajectory_controller`, not through LeRobot.
+
+> **WARNING** — Home is **outside the ML action stream**; datasets do not faithfully record that motion (trim or skip affected episodes). The trajectory is **6 s** fixed duration—if the arm is **far from home**, motion toward these targets can be **fast** in joint space; **start near home** and clear the workspace before pressing **B**. Joint targets in **degrees** (same order as `HOME_JOINTS` in code): shoulder pan **179.9**, shoulder lift **−90.0**, elbow **90.0**, wrist_1 **−90.0**, wrist_2 **−90.0**, wrist_3 **90.0**. Full context: [UR12E_LEROBOT.md — Joystick Mapping](UR12E_LEROBOT.md#joystick-mapping).
+
 ### 2) LeRobot command path (`ros_twist` + `ur12e_ros`)
 
 - Source teleop: `lerobot-ros/lerobot_teleoperator_devices/.../ros_twist.py`
@@ -138,13 +142,17 @@ Because physical actuation and LeRobot teleop are separate inputs:
 
 ### `launch/teleop_joy_lerobot_ursim.py`
 
-- Deadman/enable button: `7` (RB)
-- Twist topic remap: `/cmd_vel -> /game_controller`
-- Axis config:
-  - `axis_linear.x = 1`
-  - `axis_linear.y = 0`
+Despite **`ursim` in the path**, this launch is the **same joy + `teleop_twist_joy` + `home_button_node` stack** used for live hardware when you start `ursim_with_joy_teleop.launch.py` (driver + MoveIt + Servo + teleop). It is not limited to URSim.
+
+Defaults target an **older Xbox-style** gamepad; other controllers usually need **`enable_button` and `axis_linear.*` changes** in this file. Confirm behavior in **Gazebo or URSim** before trusting the mapping on a physical arm.
+
+- Deadman/enable button: `7` (RB on typical Xbox mapping)
+- Twist topic remap: `/cmd_vel` → `/game_controller`
+- Axis config (current code):
+  - `axis_linear.x = 0`
+  - `axis_linear.y = 1`
   - `axis_linear.z = 3`
-  - scales set to `-0.5` on x/y/z
+  - `scale_linear.x/y/z` set to `-0.5`, `0.5`, `-0.5` respectively (see file for exact values)
 
 ### `src/robot_control/robot_control/home_button_node.py`
 
@@ -220,6 +228,7 @@ ros2 service call /servo_node/switch_command_type moveit_msgs/srv/ServoCommandTy
 
 ## Source Files
 
+- `launch/ursim_with_joy_teleop.launch.py` (main: driver + teleop)
 - `launch/ursim.launch.py`
 - `launch/teleop_joy_lerobot_ursim.py`
 - `src/robot_control/robot_control/home_button_node.py`

@@ -123,6 +123,8 @@ ros2 launch launch/eyegaze.launch.py camera_source:=usb camera_device:=/dev/vide
 
 Runs HSV detection and publishes to `/vla/coords`, `/vla/target`, and `/vla/preview` (annotated image topic, always on). Replace `/dev/video4` with your camera device.
 
+**LeRobot / bench shortcut:** [`scripts/ur12e/pub_coords.sh`](../scripts/ur12e/pub_coords.sh) runs the same **`vla_detector`** node against the **ROS** topic **`/cameras/front/image_raw`** (see script header). Use it when `record_gaze.sh` or `start-act.sh` need live **`/vla/coords`**; pass **`red`**, **`blue`**, or **`yellow`** as the first argument to target that cube color. Onboarding table: [README — Repo map](../README.md#repo-map), [UR12E_IL_PIPELINE — Key nodes…](UR12E_IL_PIPELINE.md#key-nodes-launches-and-helper-scripts).
+
 ```bash
 # headless (default) — detects in background, preview available on /vla/preview
 ros2 run perception vla_detector --ros-args -p camera_source:=usb -p camera_device:=/dev/video4

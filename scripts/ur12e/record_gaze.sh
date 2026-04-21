@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Example: gaze + multi-camera recording. Usage: bash record_gaze.sh <gaze_x> <gaze_y>
+set -euo pipefail
 lerobot-record \
     --robot.type=ur12e_ros \
     --teleop.type=ros_twist \

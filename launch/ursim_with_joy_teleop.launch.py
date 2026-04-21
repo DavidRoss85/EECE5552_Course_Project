@@ -1,4 +1,15 @@
-"""Launch URSim stack and joystick teleop together.
+"""Main entry point: UR12e driver stack + joystick teleop.
+
+Includes ``ursim.launch.py`` (UR ROS 2 driver + MoveIt + Servo) and
+``teleop_joy_lerobot_ursim.py`` (``joy_node`` + ``teleop_twist_joy`` +
+``home_button_node`` → ``/game_controller``). Use this when you want the
+arm ready for MoveIt Servo **and** gamepad teleop in one command.
+
+``robot_ip`` is the **UR controller** address (real hardware or URSim on
+your network); the ``ursim`` naming is historical.
+
+For **driver + MoveIt + Servo only** (no bundled joystick), launch
+``ursim.launch.py`` directly.
 
 Usage:
   ros2 launch EECE5552_Course_Project ursim_with_joy_teleop.launch.py
@@ -20,7 +31,7 @@ def generate_launch_description():
     robot_ip_arg = DeclareLaunchArgument(
         "robot_ip",
         default_value="10.245.216.50",
-        description="IP address of the URSim instance",
+        description="UR controller IP (hardware or URSim)",
     )
 
     ursim_launch = IncludeLaunchDescription(

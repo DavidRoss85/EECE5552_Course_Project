@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+# Example: train ACT on a local dataset. Edit --dataset.root and --dataset.episodes before running.
+set -euo pipefail
 systemd-inhibit --what=sleep --why="LeRobot training" \
   lerobot-train \
     --dataset.repo_id=frazier-z/ur12e_gaze_with_gripper \

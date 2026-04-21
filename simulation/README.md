@@ -115,7 +115,7 @@ Starts joy_node, teleop_twist_joy, and teleop_controller.
 ros2 launch launch/teleop_joy_for_lerobot.launch.py
 ```
 
-Starts joy_node, teleop_twist_joy, and home_button_node. Then run `lerobot-teleoperate` or `lerobot-record` in another terminal. See [docs/UR12E_LEROBOT.md](../docs/UR12E_LEROBOT.md).
+Starts joy_node, teleop_twist_joy, and home_button_node. Then run `lerobot-teleoperate` or `lerobot-record` in another terminal. Default `teleop_twist_joy` indices target an older Xbox-style controller—adjust `launch/teleop_joy_for_lerobot.launch.py` (or `launch/teleop_joy_lerobot_ursim.py` for hardware/URSim) and verify motion before recording. See [docs/UR12E_LEROBOT.md](../docs/UR12E_LEROBOT.md).
 
 See [docs/UR12E_TELEOP.md](../docs/UR12E_TELEOP.md) for joystick mapping and B-button home.
 

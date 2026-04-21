@@ -33,6 +33,8 @@ Joystick → joy_node → teleop_twist_joy → teleop_controller → MoveIt Serv
 
 ## Launch
 
+**Physical UR12e or URSim** — the repo’s **main entry point** for the UR driver **with** joystick teleop enabled is **`launch/ursim_with_joy_teleop.launch.py`** (UR ROS 2 driver + MoveIt + Servo + `joy_node` / `teleop_twist_joy` / `home_button_node`). Example: `ros2 launch launch/ursim_with_joy_teleop.launch.py robot_ip:=<CONTROLLER_IP>`. For driver only, use `ursim.launch.py`. Details: [README — Bring up the arm stack](../README.md#bring-up-the-arm-stack).
+
 ### 1. Simulation (Terminal 1)
 
 ```bash
@@ -63,9 +65,16 @@ This starts joy_node, teleop_twist_joy, and teleop_controller.
 | Left stick Y | Forward / back |
 | Right stick Y | Up / down |
 | Right stick X | Rotate (yaw) |
-| **B button** | **Return to home pose** |
+| **B button** | **Return to home pose** (ROS trajectory, not LeRobot) |
 
 The enable button (RB / right bumper) must be held to send twist commands. Press **B** to return the arm to the home pose; the node switches controllers, runs the trajectory, then restores Servo control.
+
+> **WARNING — B button vs ML / imitation learning**  
+> Home is commanded by **`home_button_node`**, not through LeRobot’s teleop stream. **Recorded episodes do not faithfully encode that motion as training actions** (trim or exclude those segments if they appear).  
+> **WARNING — motion can be brisk**  
+> Home is a **fixed-time** joint trajectory (**6 s** in code). If the arm is **far from home**, joint speeds can be **high**—**bring the arm close to home first**, clear people and obstacles, then press **B**.
+
+**Home configuration (degrees)** — targets in [`home_button_node.py`](../src/robot_control/robot_control/home_button_node.py) (`HOME_JOINTS`, order `shoulder_pan_joint` … `wrist_3_joint`): **179.9°, −90.0°, 90.0°, −90.0°, −90.0°, 90.0°** (rounded from the radian literals in the file).
 
 ---
 
@@ -117,7 +126,9 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ## LeRobot Recording
 
-For imitation learning with LeRobot (record → train → evaluate), use `teleop_joy_for_lerobot.launch.py` and `lerobot-teleoperate` with `ros_twist`. See **[UR12E_LEROBOT.md](UR12E_LEROBOT.md)** for setup and workflow.
+For imitation learning with LeRobot (record → train → evaluate), use `teleop_joy_for_lerobot.launch.py` (Gazebo) or `teleop_joy_lerobot_ursim.py` (via `ursim_with_joy_teleop.launch.py` on hardware/URSim—the `ursim` filename is not simulator-only) and `lerobot-teleoperate` with `ros_twist`. Edit `teleop_twist_joy` parameters for your gamepad. **B-button home** is ROS-only and not a valid training action—see **[UR12E_LEROBOT.md — Joystick Mapping](UR12E_LEROBOT.md#joystick-mapping)** for warnings, home joint angles (degrees), and workflow.
+
+**Teleop-only tryout:** hardware path = `ursim_with_joy_teleop.launch.py` + `lerobot-teleoperate --robot.type=ur12e_ros --teleop.type=ros_twist` (see [README — Smoke test](../README.md#smoke-test-teleop-only-lerobot)). **`ur12e_ros`** / **`ros_twist`** are custom `lerobot-ros` plugins; **`ros_twist`** consumes **`Twist`** on `/game_controller`, and **`ur12e_ros`** emits **`TwistStamped`** to MoveIt Servo—see **[UR12E_LEROBOT.md — Custom plugins…](UR12E_LEROBOT.md#custom-plugins-and-moveit-servo-control-path)**.
 
 ---
 

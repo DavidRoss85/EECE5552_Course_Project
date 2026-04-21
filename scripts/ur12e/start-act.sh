@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+# Example: run a trained policy via lerobot-record + gaze. Usage: bash start-act.sh <gaze_x> <gaze_y>
+set -euo pipefail
 ROOT="${HOME}/GitHub/EECE5552_Course_Project"
 DATASET_DIR="$HOME/GitHub/EECE5552_Course_Project/eval_datasets/eval_ur12e_act_v2_20"
 if [ -d "$DATASET_DIR" ]; then

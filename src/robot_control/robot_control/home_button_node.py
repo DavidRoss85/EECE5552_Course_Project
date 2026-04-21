@@ -2,6 +2,13 @@
 
 B button sends the arm to home pose. Gripper is controlled via the
 lerobot teleop pipeline (A button in ros_twist teleoperator).
+
+WARNING: Home is a ROS trajectory outside LeRobot. It does not appear as a
+meaningful action in recorded datasets; episodes that include a home move
+should be trimmed or excluded from training. The goal is reached in a fixed
+time (see trajectory time_from_start); if the arm starts far from home in
+joint space, joint motion can be brisk—only press B when the arm is already
+near the home configuration and the workspace is clear.
 """
 
 from sensor_msgs.msg import Joy
@@ -14,6 +21,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
+# Joint targets (rad) for shoulder_pan … wrist_3. Same order as JOINT_NAMES.
+# Approximate degrees: 179.9°, -90.0°, 90.0°, -90.0°, -90.0°, 90.0°.
 HOME_JOINTS = [3.14, -1.5707, 1.5707, -1.5707, -1.5707, 1.5707]
 JOINT_NAMES = [
     "shoulder_pan_joint",

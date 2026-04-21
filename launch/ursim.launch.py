@@ -1,7 +1,12 @@
-"""Launch the UR ROS2 driver against URSim + MoveIt Servo.
+"""UR ROS 2 driver + MoveIt + Servo (no bundled joystick teleop).
 
-URSim must already be running (e.g. via Docker) before starting this launch.
-Default URSim IP is 192.168.56.101.
+For **driver + teleop in one command** (typical UR12e bench workflow), use
+``ursim_with_joy_teleop.launch.py`` instead; it includes this file plus
+``teleop_joy_lerobot_ursim.py``.
+
+URSim must already be running (e.g. via Docker) before starting this launch
+when targeting simulation. Pass ``robot_ip`` for the UR controller (hardware
+or URSim).
 
 Usage:
   ros2 launch EECE5552_Course_Project ursim.launch.py
